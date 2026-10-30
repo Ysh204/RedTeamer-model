@@ -4,12 +4,14 @@ import re
 import threading
 from pathlib import Path
 
+ROOT = Path(__file__).resolve().parent
+os.environ.setdefault("HF_HOME", str(ROOT / ".hf_cache"))
+
 import gradio as gr
 import torch
 from peft import PeftModel
 from transformers import AutoModelForCausalLM, AutoTokenizer, BitsAndBytesConfig
 
-ROOT = Path(__file__).resolve().parent
 ADAPTER_DIR = Path(os.environ.get(
     "REDTEAMER_ADAPTER", str(ROOT / "security-redteamer-qwen3-lora-v5")
 ))

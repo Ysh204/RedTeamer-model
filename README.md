@@ -35,6 +35,11 @@ Use Python 3.13, which is installed on this PC. In PowerShell, from `D:\projects
 
 2. Install a PyTorch build matching your computer. Use the official PyTorch selector at [pytorch.org/get-started/locally](https://pytorch.org/get-started/locally/). Select Windows and Pip, then choose the CUDA option that matches your NVIDIA setup. This PC has an RTX 4050 Laptop GPU with 6 GB VRAM. 4-bit loading may work for short snippets, but memory can be tight; if it runs out of memory, use the Colab T4, which has more headroom and is the known working setup from training.
 
+Optional Hugging Face sign-in (recommended for Hub downloads): from PowerShell, set the same cache directory and start the browser device-login flow. The token stays in the local cache and should not be pasted into chat.
+
+       $env:HF_HOME = "D:\projects\RedTeamer\.hf_cache"
+       .\.venv\Scripts\hf.exe auth login
+
 3. Install the app libraries:
 
        .\.venv\Scripts\python.exe -m pip install -r requirements.txt
