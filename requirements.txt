@@ -1,0 +1,7 @@
+# Install PyTorch separately using the official selector in README.md.
+transformers>=5.22.1,<6
+peft>=0.21.2,<0.22
+accelerate>=1.0,<2
+bitsandbytes>=0.46,<1
+gradio>=5,<7
+safetensors>=0.4.5,<1
