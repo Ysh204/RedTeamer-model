@@ -73,8 +73,10 @@ reviews whether the evidence gap is real, including any tentative Attacker
 finding, while the displayed Attacker report keeps `findings` empty. The
 Patcher is not called for that status. It runs only when Attacker reports a
 concrete finding and Critic confirms it; a patch is shown only if it has
-unified diff headers and a hunk, regardless of filename. Accepted diffs are
-also rendered as readable code in the summary.
+diff headers, a hunk marker, and a changed line, regardless of filename. This
+is only a shape check: the app does not verify that the patch applies or fixes
+the issue. Accepted suggestions are also rendered as readable code in the
+summary, and always require human review.
 
 Agent results now appear stage by stage while the review runs. If an agent
 returns output that cannot be parsed as JSON, the interface shows its raw

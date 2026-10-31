@@ -152,65 +152,36 @@ def _normalize_unified_diff(value):
     return "\n".join(lines).strip()
 
 
-def _is_unified_diff(value) -> bool:
+def _is_usable_diff_proposal(value) -> bool:
     if not isinstance(value, str) or not value.strip():
         return False
 
     lines = value.splitlines()
-    old_headers = [i for i, line in enumerate(lines) if line.startswith("--- ")]
-    new_headers = [i for i, line in enumerate(lines) if line.startswith("+++ ")]
-    first_hunk = next(
-        (i for i, line in enumerate(lines) if line.startswith("@@ ")),
+    old_header = next(
+        (i for i, line in enumerate(lines) if line.startswith("---")),
+        None,
+    )
+    new_header = next(
+        (i for i, line in enumerate(lines) if line.startswith("+++")),
+        None,
+    )
+    hunk = next(
+        (i for i, line in enumerate(lines) if line.startswith("@@")),
         None,
     )
     if (
-        len(old_headers) != 1
-        or len(new_headers) != 1
-        or first_hunk is None
+        old_header is None
+        or new_header is None
+        or hunk is None
+        or not old_header < new_header < hunk
     ):
         return False
-    if not old_headers[0] < new_headers[0] < first_hunk:
-        return False
 
-    hunk_re = re.compile(
-        r"^@@ -(\d+)(?:,(\d+))? \+(\d+)(?:,(\d+))? @@(?: .*)?$"
+    return any(
+        (line.startswith("+") and not line.startswith("+++"))
+        or (line.startswith("-") and not line.startswith("---"))
+        for line in lines[hunk + 1:]
     )
-    index = first_hunk
-    has_change = False
-    while index < len(lines):
-        match = hunk_re.match(lines[index])
-        if not match:
-            return False
-        old_expected = int(match.group(2) or 1)
-        new_expected = int(match.group(4) or 1)
-        old_seen = new_seen = 0
-        index += 1
-
-        while old_seen < old_expected or new_seen < new_expected:
-            if index >= len(lines):
-                return False
-            line = lines[index]
-            if line.startswith(" "):
-                old_seen += 1
-                new_seen += 1
-            elif line.startswith("-"):
-                old_seen += 1
-                has_change = True
-            elif line.startswith("+"):
-                new_seen += 1
-                has_change = True
-            elif line.startswith("\\"):
-                pass  # Unified-diff end-of-file marker.
-            else:
-                return False
-            if old_seen > old_expected or new_seen > new_expected:
-                return False
-            index += 1
-
-        while index < len(lines) and lines[index].startswith("\\"):
-            index += 1
-
-    return has_change
 
 
 def _diff_markdown(diff: str) -> str:
@@ -447,11 +418,11 @@ def review_code(code: str):
 
     if patcher["status"] == "patch_proposed":
         patch_text = _normalize_unified_diff(patcher.get("patch"))
-        if not _is_unified_diff(patch_text):
+        if not _is_usable_diff_proposal(patch_text):
             yield (
-                "Patcher output was not a structurally consistent unified "
-                "diff, so it was not accepted as a patch proposal. No files "
-                "were changed.",
+                "Patcher output did not have diff headers, a hunk marker, "
+                "and a changed line, so it was not accepted as a patch "
+                "proposal. No files were changed.",
                 attacker_str, critic_str, _json(patcher),
             )
             return
@@ -461,10 +432,13 @@ def review_code(code: str):
     patcher["applied"] = False
     diff_preview = ""
     if patcher["status"] == "patch_proposed" and patcher.get("patch"):
+        patcher["proposal_validation"] = "diff_shape_only"
         diff_preview = _diff_markdown(patcher["patch"])
     yield (
-        "Review complete. The patch is a suggestion only; this app never "
-        f"edits project files. Human review is required.{diff_preview}",
+        "Review complete. This is a diff-shaped suggestion only; the app "
+        "checked its headers, hunk marker, and changed line, but did not "
+        "verify that it applies or fixes the issue. The app never edits "
+        f"project files. Human review is required.{diff_preview}",
         attacker_str, critic_str, _json(patcher),
     )
 
@@ -505,7 +479,7 @@ The app uses the shared V5 adapter, runs locally, and never changes files."""
         attacker_output = gr.Code(label="Attacker report", language="json", lines=14)
         critic_output = gr.Code(label="Critic review", language="json", lines=14)
     patcher_output = gr.Code(
-        label="Patcher proposal (human review required)",
+        label="Patcher suggestion (shape check only; human review required)",
         language="json",
         lines=16,
     )
