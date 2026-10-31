@@ -61,6 +61,75 @@ The V5 training split had 26 confirmed, 27 rejected, and 11 needs-more-context C
 
 The separate V5 test set had 4 examples for each Attacker outcome and each Critic verdict; its Patcher labels were 4 patch proposals and 8 no-patch outcomes. The test set was initially created with no overlap with the V5 candidate. After its outputs were inspected and used to guide prompt and development changes, treat it as a development benchmark rather than a pristine blind test for future comparisons. Create a new untouched test set for the next model comparison.
 
+### Representative exact training examples
+
+The local file D:\projects\RedTeamer\train.jsonl contains 192 rows for 64 cases: 64 rows each for Attacker, Critic, and Patcher. The examples below are selected directly from that file. For brevity, they show the code and assistant target from each conversational row; each row also contains its system and user prompt.
+
+#### Positive SQL injection case: sql-invoice-01
+
+Code supplied to the agents:
+
+    def invoice_by_email(email, db):
+        sql = "SELECT id, total FROM invoices WHERE customer_email = '" + email + "'"
+        return db.execute(sql).fetchall()
+
+Attacker target:
+
+    {"agent":"attacker","status":"finding","findings":[{"cwe":"CWE-89","severity":"medium","confidence":"high","evidence":"email is concatenated into SQL text passed to db.execute.","impact":"","safe_validation":""}],"missing_context":[]}
+
+Critic target:
+
+    {"agent":"critic","verdict":"confirmed","reason":"The snippet inserts email directly into the SQL string and shows no parameter binding.","evidence":[],"missing_context":[]}
+
+Patcher target:
+
+    {"agent":"patcher","status":"patch_proposed","patch":"Use a parameterized query: db.execute(\"SELECT id, total FROM invoices WHERE customer_email = ?\", (email,))","regression_test":"Check that a quote-containing email is treated as data and returns no unintended rows.","requires_human_approval":true}
+
+#### Safe path-containment case: report-path-contained-01
+
+Code supplied to the agents:
+
+    base = Path("/srv/reports").resolve()
+    target = (base / request.args["name"]).resolve()
+    if target != base and base not in target.parents:
+        abort(404)
+    return send_file(target)
+
+Attacker target:
+
+    {"agent":"attacker","status":"no_finding","findings":[],"missing_context":[]}
+
+Critic target:
+
+    {"agent":"critic","verdict":"rejected","reason":"The resolved path is checked to remain inside the resolved reports directory before it is sent.","evidence":[],"missing_context":[]}
+
+Patcher target:
+
+    {"agent":"patcher","status":"no_patch","patch":"","regression_test":"No traversal patch is indicated by this snippet; test the containment check as part of regression coverage.","requires_human_approval":false}
+
+#### Authorization case needing more context: invoice-helper-context-02
+
+Code supplied to the agents:
+
+    def get_invoice(request, invoice_id):
+        return db.get_invoice(invoice_id)
+
+Attacker target:
+
+    {"agent":"attacker","status":"needs_more_context","findings":[],"missing_context":["Inspect db.get_invoice and route middleware for ownership enforcement."]}
+
+Critic target:
+
+    {"agent":"critic","verdict":"needs_more_context","reason":"The snippet does not show whether the helper or middleware checks invoice ownership.","evidence":["The helper receives invoice_id; its implementation is not shown."],"missing_context":["db.get_invoice implementation","route authentication and authorization middleware"]}
+
+Patcher target:
+
+    {"agent":"patcher","status":"no_patch","patch":"","regression_test":"Inspect the authorization path before proposing a code change.","requires_human_approval":false}
+
+#### Training-format note for the Patcher
+
+These exact V5 training targets teach the Patcher to put a **prose instruction** in the patch field. They use the field names regression_test (singular) and requires_human_approval. The current app asks for unified diffs and uses fields such as regression_tests (plural), summary, and human_approval_required. This mismatch helps explain why the adapter may return prose or inconsistent patch formats. To train reliable unified-diff generation, update the Patcher reference targets to valid diffs in one consistent schema and retrain/evaluate the Patcher role.
+
 ## 3. Version-by-version training and upgrades
 
 ### V1 — Pipeline baseline
