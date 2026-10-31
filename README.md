@@ -67,4 +67,16 @@ To use another copy, set `REDTEAMER_ADAPTER` before starting the app:
        $env:REDTEAMER_ADAPTER = "D:\path\to\adapter"
        .\.venv\Scripts\python.exe app.py
 
-The app uses the adapter tokenizer/chat template and asks Qwen for JSON. It stops the chain on invalid output, on “no finding,” or when the Critic does not confirm the report.
+The app uses the adapter tokenizer/chat template and asks Qwen for JSON. It
+stops on invalid output or “no finding.” For “needs more context,” the Critic
+reviews whether the evidence gap is real, including any tentative Attacker
+finding, while the displayed Attacker report keeps `findings` empty. The
+Patcher is not called for that status. It runs only when Attacker reports a
+concrete finding and Critic confirms it; a patch is shown only if it has
+unified diff headers and a hunk, regardless of filename. Accepted diffs are
+also rendered as readable code in the summary.
+
+Agent results now appear stage by stage while the review runs. If an agent
+returns output that cannot be parsed as JSON, the interface shows its raw
+response to help diagnose truncation or formatting problems. GPU generation is
+serialized so overlapping review requests do not run concurrent model passes.
