@@ -1,6 +1,24 @@
+# Python environments and generated files
 .venv/
 __pycache__/
 *.py[cod]
+.pytest_cache/
+
+# Local credentials
 .env
-security-redteamer-qwen3-lora-v5/
+.env.*
+!.env.example
+
+# Hugging Face cache
 .hf_cache/
+
+# Adapter exports and downloaded model weights are stored outside Git.
+# The Patcher runtime source remains tracked.
+security-redteamer-qwen3-lora-v5/
+patcher_agent/patcher_v31_export/adapter/
+*.safetensors
+*.gguf
+*.pt
+*.pth
+adapter_model.bin
+pytorch_model*.bin
