@@ -118,7 +118,10 @@ reports a concrete finding and Critic confirms it. Patcher returns exact
 unified diff, and performs generic checks for patch applicability, Python
 parsing, new undefined names, and patch size. If an edit does not match the
 source, the app retries once with validator feedback and rejects it if it
-still does not match.
+still does not match. As a narrow recovery for malformed JSON quoting, it can
+replace quote characters in an `old` block only when the rest of the complete
+block matches exactly one source span; the adjusted edit is disclosed for
+human review. Other mismatches and ambiguous spans are rejected.
 
 These checks are not a security proof. Evidence alignment is unassessed when
 the Attacker paraphrases instead of quoting source text exactly. Every

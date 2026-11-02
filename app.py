@@ -15,22 +15,39 @@ from patcher_agent.patcher_v31_export.patcher_runtime import (
     PATCHER_SYSTEM as SPECIALIST_PATCHER_SYSTEM,
     build_user as build_patcher_user,
     finalize_patcher_output,
+    norm as norm_ws,
     valid_patcher_schema,
 )
 
-ADAPTER_DIR = Path(os.environ.get(
-    "REDTEAMER_ADAPTER", str(ROOT / "security-redteamer-qwen3-lora-v5")
-))
-PATCHER_ADAPTER_DIR = Path(os.environ.get(
-    "REDTEAMER_PATCHER_ADAPTER",
-    str(ROOT / "patcher_agent" / "patcher_v31_export" / "adapter"),
-))
+ADAPTER_DIR = Path(
+    os.environ.get("REDTEAMER_ADAPTER", str(ROOT / "security-redteamer-qwen3-lora-v5"))
+)
+PATCHER_ADAPTER_DIR = Path(
+    os.environ.get(
+        "REDTEAMER_PATCHER_ADAPTER",
+        str(ROOT / "patcher_agent" / "patcher_v31_export" / "adapter"),
+    )
+)
 BASE_MODEL = "Qwen/Qwen3-4B"
 MAX_CODE_CHARS = 6000
 _model = None
 _tokenizer = None
 _load_lock = threading.Lock()
 _infer_lock = threading.Lock()
+
+CWE_DEFAULT_TITLES = {
+    "CWE-89": "SQL injection via query construction",
+    "CWE-79": "Reflected XSS via unescaped output",
+    "CWE-78": "OS command injection",
+    "CWE-22": "Path traversal",
+    "CWE-798": "Hardcoded credentials",
+    "CWE-502": "Insecure deserialization",
+    "CWE-94": "Code injection via eval",
+    "CWE-327": "Use of weak cryptographic hash",
+    "CWE-330": "Use of insufficiently random values",
+    "CWE-295": "Improper certificate validation",
+    "CWE-601": "Open redirect",
+}
 
 
 def load_model():
@@ -53,9 +70,7 @@ def load_model():
             if not (adapter_dir / name).is_file()
         ]
         if missing:
-            raise RuntimeError(
-                "Missing required adapter files: " + ", ".join(missing)
-            )
+            raise RuntimeError("Missing required adapter files: " + ", ".join(missing))
 
         quantization = BitsAndBytesConfig(
             load_in_4bit=True,
@@ -155,7 +170,7 @@ def _extract_json(text: str):
                 depth -= 1
                 if depth == 0:
                     try:
-                        value = json.loads(text[start:end + 1])
+                        value = json.loads(text[start : end + 1], strict=False)
                         if isinstance(value, dict):
                             return value
                     except json.JSONDecodeError:
@@ -182,6 +197,42 @@ def _valid(value, agent: str, field: str, allowed: set[str]) -> bool:
         and value.get("agent") == agent
         and value.get(field) in allowed
     )
+
+
+def _format_finding_for_patcher(code: str, raw_finding: dict, critic: dict) -> dict:
+    """Align the Attacker/Critic finding object with the schema used to train patcher_v31."""
+    cwe = raw_finding.get("cwe") or "CWE-89"
+    evidence = (raw_finding.get("evidence") or "").replace("\u00a0", " ").strip()
+
+    # If Attacker evidence isn't a direct substring, check if Critic cited a literal quote
+    if evidence and norm_ws(evidence) not in norm_ws(code):
+        for ce in critic.get("evidence") or []:
+            if isinstance(ce, str) and ce.strip() and norm_ws(ce) in norm_ws(code):
+                evidence = ce.strip()
+                break
+
+    title = (
+        raw_finding.get("title")
+        or CWE_DEFAULT_TITLES.get(cwe)
+        or raw_finding.get("impact")
+        or f"{cwe} vulnerability"
+    )
+    patcher_finding = {
+        "status": "finding",
+        "cwe": cwe,
+        "title": title,
+        "evidence": evidence,
+        "critic_verdict": "confirmed",
+    }
+    if raw_finding.get("severity") in {"low", "medium", "high", "critical"}:
+        patcher_finding["severity"] = raw_finding["severity"]
+
+    if evidence:
+        for idx, line in enumerate(code.splitlines(), 1):
+            if norm_ws(evidence) in norm_ws(line):
+                patcher_finding["line"] = idx
+                break
+    return patcher_finding
 
 
 def _attacker_prompt(code: str) -> str:
@@ -241,11 +292,17 @@ def review_code(code: str):
     if not code or not code.strip():
         yield "Paste a short code snippet first.", "", "", ""
         return
+
+    # Normalize browser non-breaking spaces and CRLF line endings immediately
+    code = code.replace("\u00a0", " ").replace("\r\n", "\n").replace("\r", "\n")
+
     if len(code) > MAX_CODE_CHARS:
         yield (
             f"Snippet is too long ({len(code):,} characters). Keep it under "
             f"{MAX_CODE_CHARS:,} characters for this prototype.",
-            "", "", "",
+            "",
+            "",
+            "",
         )
         return
 
@@ -257,13 +314,15 @@ def review_code(code: str):
         yield f"Could not load or run the model: {exc}", "", "", ""
         return
 
-    if not _valid(attacker, "attacker", "status",
-                  {"finding", "no_finding", "needs_more_context"}):
+    if not _valid(
+        attacker, "attacker", "status", {"finding", "no_finding", "needs_more_context"}
+    ):
         yield (
             "Attacker output was not valid in the expected JSON format. "
             "No later agent was called.",
             _json(attacker) or f"// Raw unparsed output:\n{raw_attacker}",
-            "", "",
+            "",
+            "",
         )
         return
 
@@ -272,7 +331,10 @@ def review_code(code: str):
     ):
         yield (
             "Attacker output did not include findings and missing_context "
-            "arrays. No later agent was called.", _json(attacker), "", "",
+            "arrays. No later agent was called.",
+            _json(attacker),
+            "",
+            "",
         )
         return
 
@@ -281,14 +343,16 @@ def review_code(code: str):
     attacker_for_display = dict(attacker)
     tentative_findings = bool(attacker_for_critic["findings"])
     if attacker_status != "finding":
-        # Keep displayed status consistent while preserving context for Critic.
         attacker_for_display["findings"] = []
     attacker_str = _json(attacker_for_display)
 
     if attacker_status == "no_finding":
         yield (
             "No finding was reported. This does not prove the code is safe; "
-            "manual review is still required.", attacker_str, "", "",
+            "manual review is still required.",
+            attacker_str,
+            "",
+            "",
         )
         return
 
@@ -296,7 +360,10 @@ def review_code(code: str):
     if attacker_status == "finding" and not findings:
         yield (
             "Attacker said finding but provided no usable finding. "
-            "No later agent was called.", attacker_str, "", "",
+            "No later agent was called.",
+            attacker_str,
+            "",
+            "",
         )
         return
 
@@ -315,12 +382,15 @@ def review_code(code: str):
     except Exception as exc:
         yield f"Attacker ran, but Critic could not run: {exc}", attacker_str, "", ""
         return
-    if not _valid(critic, "critic", "verdict",
-                  {"confirmed", "rejected", "needs_more_context"}):
+    if not _valid(
+        critic, "critic", "verdict", {"confirmed", "rejected", "needs_more_context"}
+    ):
         yield (
             "Critic output was not valid JSON in the expected format. "
-            "Patcher was not called.", attacker_str,
-            _json(critic) or f"// Raw unparsed output:\n{raw_critic}", "",
+            "Patcher was not called.",
+            attacker_str,
+            _json(critic) or f"// Raw unparsed output:\n{raw_critic}",
+            "",
         )
         return
     critic_str = _json(critic)
@@ -329,13 +399,16 @@ def review_code(code: str):
         tentative_note = (
             " The model's tentative finding details were omitted because its "
             "status was needs_more_context."
-            if tentative_findings else ""
+            if tentative_findings
+            else ""
         )
         yield (
             f"Critic verdict: {critic['verdict']}. Patcher was not called "
             "because Attacker did not report a concrete finding. Manual "
             f"review is still required.{tentative_note}",
-            attacker_str, critic_str, "",
+            attacker_str,
+            critic_str,
+            "",
         )
         return
 
@@ -343,17 +416,22 @@ def review_code(code: str):
         yield (
             f"Critic verdict: {critic['verdict']}. Patcher was not called. "
             "Manual review is still required.",
-            attacker_str, critic_str, "",
+            attacker_str,
+            critic_str,
+            "",
         )
         return
 
     yield (
         "Critic confirmed the finding. Running **Patcher**...",
-        attacker_str, critic_str, "",
+        attacker_str,
+        critic_str,
+        "",
     )
+    patcher_finding = _format_finding_for_patcher(code, findings[0], critic)
     try:
         raw_patcher = _generate(
-            build_patcher_user(code, findings[0]),
+            build_patcher_user(code, patcher_finding),
             900,
             adapter_name="patcher_v31",
             system_prompt=SPECIALIST_PATCHER_SYSTEM,
@@ -362,44 +440,52 @@ def review_code(code: str):
     except Exception as exc:
         yield (
             f"Critic confirmed the finding, but Patcher could not run: {exc}",
-            attacker_str, critic_str, "",
+            attacker_str,
+            critic_str,
+            "",
         )
         return
     if not valid_patcher_schema(patcher):
         yield (
             "Patcher output was not valid JSON in the expected format. "
-            "No files were changed.", attacker_str, critic_str,
+            "No files were changed.",
+            attacker_str,
+            critic_str,
             _json(patcher) or f"// Raw unparsed output:\n{raw_patcher}",
         )
         return
 
     try:
-        patcher = finalize_patcher_output(patcher, code, findings[0])
+        patcher = finalize_patcher_output(patcher, code, patcher_finding)
     except Exception as exc:
         yield (
             f"Patcher output could not pass the proposal checks: {exc}. "
-            "No files were changed.", attacker_str, critic_str, _json(patcher),
+            "No files were changed.",
+            attacker_str,
+            critic_str,
+            _json(patcher),
         )
         return
 
     if patcher.get("failed_checks") and any(
-        str(check).startswith("edits_apply:")
-        for check in patcher["failed_checks"]
+        str(check).startswith("edits_apply:") for check in patcher["failed_checks"]
     ):
         yield (
             "The Patcher edit did not match the source exactly. Retrying "
             "once with the validator feedback...",
-            attacker_str, critic_str, _json(patcher),
+            attacker_str,
+            critic_str,
+            _json(patcher),
         )
         repair_prompt = (
-            build_patcher_user(code, findings[0])
+            build_patcher_user(code, patcher_finding)
             + "\n<validation_feedback>\n"
             + "Your previous edit was rejected because its old text did not "
-            "match an exact, unique span in the source. Re-read the source "
-            "and copy the old lines exactly, preserving all quotes, "
-            "operators, and indentation. JSON-escape quotes as needed so "
-            "the parsed old value is identical to the source. Do not guess. "
-            "If you cannot produce an exact, unique edit, return no_patch.\n"
+            + "match an exact, unique span in the source. Re-read the source "
+            + "and copy the old lines exactly, preserving all quotes, "
+            + "operators, and indentation. JSON-escape quotes as needed so "
+            + "the parsed old value is identical to the source. Do not guess. "
+            + "If you cannot produce an exact, unique edit, return no_patch.\n"
             + "</validation_feedback>"
         )
         try:
@@ -412,7 +498,7 @@ def review_code(code: str):
             retry_candidate = _extract_json(raw_retry)
             if valid_patcher_schema(retry_candidate):
                 patcher = finalize_patcher_output(
-                    retry_candidate, code, findings[0]
+                    retry_candidate, code, patcher_finding
                 )
                 patcher["repair_attempted"] = True
             else:
@@ -442,12 +528,22 @@ def review_code(code: str):
             )
         elif patcher.get("checks", {}).get("evidence_area_changed"):
             status_message += " The cited source area was changed."
+        if patcher.get("quote_repair"):
+            status_message += (
+                " The validator corrected quote characters in the model's "
+                "old text using a unique matching source span; review the "
+                "adjusted edit carefully."
+            )
     elif patcher.get("rejected_edits"):
         status_message = (
             "The Patcher proposal was withheld because one or more generic "
             f"checks failed: {', '.join(patcher.get('failed_checks', []))}. "
             "No files were changed; review the details and verify manually."
         )
+        if patcher.get("quote_repair"):
+            status_message += (
+                " The validator also corrected quote characters in the rejected edit."
+            )
     else:
         status_message = (
             "The Patcher returned no_patch. No files were changed; review "
@@ -455,7 +551,9 @@ def review_code(code: str):
         )
     yield (
         status_message + " The app never edits project files." + diff_preview,
-        attacker_str, critic_str, _json(patcher),
+        attacker_str,
+        critic_str,
+        _json(patcher),
     )
 
 
@@ -463,8 +561,10 @@ def load_button():
     try:
         load_model()
         return (
-            "Model ready. Attacker/Critic: " + str(ADAPTER_DIR)
-            + "; Patcher: " + str(PATCHER_ADAPTER_DIR)
+            "Model ready. Attacker/Critic: "
+            + str(ADAPTER_DIR)
+            + "; Patcher: "
+            + str(PATCHER_ADAPTER_DIR)
         )
     except Exception as exc:
         return f"Model not loaded: {exc}"
