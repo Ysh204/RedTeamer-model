@@ -1,4 +1,4 @@
-import React, { useEffect, useRef } from 'react'
+import { useEffect, useRef } from 'react'
 
 const BAYER8 = [
   [0, 32, 8, 40, 2, 34, 10, 42],
