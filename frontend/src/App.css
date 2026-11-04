@@ -507,7 +507,7 @@ h1 small {
 .nav-overlay {
   position: absolute;
   inset: 62px 18px auto 18px;
-  z-index: 8;
+  z-index: 20;
   background: #fff;
   border: 1.5px solid #111;
   border-radius: 18px;
@@ -529,7 +529,9 @@ h1 small {
   font-style: italic;
 }
 
-.stage.is-home {
+.stage.is-home,
+.stage.is-page {
+  height: 100svh;
   overflow: hidden;
 }
 
