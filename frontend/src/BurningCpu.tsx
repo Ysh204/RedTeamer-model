@@ -116,9 +116,9 @@ export function BurningDataCenterMachine() {
     let emitterCount = 0
     let pixels: ImageData | null = null
 
-    // Three-quarter upright perspective matching the EDGERACK Data Center Server Cabinet reference images
+    // Three-quarter upright perspective for the 3-Rack Data Center Server Cluster
     const DEFAULT_PITCH = 0.28
-    const DEFAULT_YAW = -0.6
+    const DEFAULT_YAW = -0.56
     let pitch = DEFAULT_PITCH
     let yaw = DEFAULT_YAW
     let targetPitch = DEFAULT_PITCH
@@ -136,7 +136,7 @@ export function BurningDataCenterMachine() {
     let plumeCx = 0
     let plumeCy = 0
     let scaleRadius = 60
-    let plumeSpanX = 60
+    let plumeSpanX = 90
 
     // Pre-generate high-detail 3D Data Center Server Rack Textures (128x224):
     // 1. Front Door: brushed dark-steel frame, swing-handle latch with lock cylinder,
@@ -159,31 +159,30 @@ export function BurningDataCenterMachine() {
         const u = tx / (TEX_W - 1)
         const idx = ty * TEX_W + tx
 
-        // Brushed dark-anodized steel front door frame
         let frame = 0.28 + (1 - u) * 0.12 + (1 - v) * 0.08
-        if (u < 0.025 || v < 0.015) {
-          frame = 0.88
-        } else if (u > 0.965) {
-          frame = 0.72
-        } else if ((u > 0.045 && u < 0.062) || (u > 0.935 && u < 0.95)) {
-          frame = 0.14
+        if (u < 0.032 || v < 0.018) {
+          frame = 0.92
+        } else if (u > 0.962) {
+          frame = 0.78
+        } else if ((u > 0.048 && u < 0.068) || (u > 0.93 && u < 0.95)) {
+          frame = 0.12
         }
 
         let val = frame
         let burn = 0.0
 
-        // Left swing-handle latch (v in 0.43..0.53, u in 0.045..0.125)
-        if (v >= 0.43 && v <= 0.53 && u >= 0.045 && u <= 0.125) {
-          if (v >= 0.435 && v <= 0.525 && u >= 0.06 && u <= 0.11) {
+        // Left swing-handle latch (v in 0.43..0.53, u in 0.045..0.13)
+        if (v >= 0.43 && v <= 0.53 && u >= 0.045 && u <= 0.13) {
+          if (v >= 0.435 && v <= 0.525 && u >= 0.06 && u <= 0.115) {
             val = 0.06
-            if (v >= 0.45 && v <= 0.5 && u >= 0.075 && u <= 0.095) {
-              val = 0.68
+            if (v >= 0.45 && v <= 0.5 && u >= 0.075 && u <= 0.098) {
+              val = 0.72
             }
-            if (Math.abs(v - 0.512) < 0.008 && Math.abs(u - 0.085) < 0.012) {
-              val = 0.95
+            if (Math.abs(v - 0.512) < 0.008 && Math.abs(u - 0.086) < 0.014) {
+              val = 0.96
             }
           } else {
-            val = 0.78
+            val = 0.82
           }
         }
 
@@ -191,8 +190,8 @@ export function BurningDataCenterMachine() {
 
         // A) Upper EDGERACK Header Window (v in 0.055..0.19)
         if (inWindowX && v >= 0.055 && v <= 0.19) {
-          if (u < 0.185 || u > 0.815 || v < 0.063 || v > 0.182) {
-            val = 0.75
+          if (u < 0.19 || u > 0.81 || v < 0.065 || v > 0.18) {
+            val = 0.78
           } else {
             const refl = Math.max(0, Math.sin((v - 0.09) * 26.0) * (1 - Math.abs(u - 0.45) * 1.4))
             val = 0.12 + refl * 0.55
@@ -207,14 +206,14 @@ export function BurningDataCenterMachine() {
           }
         }
         // B) Recessed LCD Telemetry Control Touch Panel (v in 0.22..0.325)
-        else if (v >= 0.22 && v <= 0.325 && u >= 0.23 && u <= 0.77) {
-          if (u < 0.265 || u > 0.735 || v < 0.235 || v > 0.31) {
-            val = 0.84
+        else if (v >= 0.22 && v <= 0.325 && u >= 0.22 && u <= 0.78) {
+          if (u < 0.26 || u > 0.74 || v < 0.235 || v > 0.31) {
+            val = 0.86
           } else {
             val = 0.14 + (0.65 - u) * 0.18
             if (v >= 0.255 && v <= 0.29 && u >= 0.34 && u <= 0.66) {
               if (((u * 48) | 0) % 3 === 0 && ((v * 90) | 0) % 2 === 0) {
-                val = 0.92
+                val = 0.94
               }
             }
             burn = 0.92
@@ -222,21 +221,18 @@ export function BurningDataCenterMachine() {
         }
         // C) Tall Lower Tempered-Glass Server Bay Door (v in 0.36..0.92)
         else if (inWindowX && v >= 0.36 && v <= 0.92) {
-          if (u < 0.185 || u > 0.815 || v < 0.368 || v > 0.912) {
-            val = 0.82
+          if (u < 0.19 || u > 0.81 || v < 0.37 || v > 0.91) {
+            val = 0.84
           } else {
-            // Left & right 19-inch vertical mounting rails with square cage-nut holes
-            if ((u >= 0.195 && u <= 0.245) || (u >= 0.755 && u <= 0.805)) {
+            if ((u >= 0.198 && u <= 0.25) || (u >= 0.75 && u <= 0.802)) {
               const railHole =
-                ty % 4 === 0 && ((u >= 0.21 && u <= 0.23) || (u >= 0.77 && u <= 0.79))
-              val = railHole ? 0.08 : 0.64
+                ty % 4 === 0 && ((u >= 0.212 && u <= 0.236) || (u >= 0.764 && u <= 0.788))
+              val = railHole ? 0.08 : 0.68
             } else {
-              // Metallic interior cabinet wall with depth gradient
               const depthGrad =
-                0.88 - ((u - 0.245) / 0.51) * 0.52 + Math.sin(v * 18.0) * 0.06
+                0.88 - ((u - 0.25) / 0.5) * 0.5 + Math.sin(v * 18.0) * 0.06
               val = Math.max(0.15, Math.min(0.95, depthGrad))
 
-              // Horizontal Server Blades / Rack Shelves & Status LEDs
               if (
                 Math.abs(v - 0.42) < 0.018 ||
                 Math.abs(v - 0.54) < 0.022 ||
@@ -244,7 +240,7 @@ export function BurningDataCenterMachine() {
                 Math.abs(v - 0.79) < 0.016
               ) {
                 const isLed = tx % 5 === 0 && ty % 2 === 0
-                val = isLed ? 0.96 : 0.16
+                val = isLed ? 0.96 : 0.14
               } else if (
                 Math.abs(v - 0.445) < 0.006 ||
                 Math.abs(v - 0.568) < 0.006 ||
@@ -260,7 +256,6 @@ export function BurningDataCenterMachine() {
           }
         }
 
-        // Bottom warning/serial plate at very bottom of front door
         if (v >= 0.945 && v <= 0.972 && u >= 0.3 && u <= 0.68) {
           val = tx % 3 !== 0 ? 0.68 : 0.22
         }
@@ -286,7 +281,7 @@ export function BurningDataCenterMachine() {
         let val = 0.32 + sheen
 
         if (u < 0.03 || u > 0.96 || v < 0.018 || v > 0.975) {
-          val = u < 0.02 || v < 0.012 ? 0.78 : 0.14
+          val = u < 0.022 || v < 0.012 ? 0.82 : 0.14
         } else if (v >= 0.475 && v <= 0.512) {
           if (Math.abs(v - 0.475) < 0.006 || Math.abs(v - 0.512) < 0.006) {
             val = 0.12
@@ -379,7 +374,8 @@ export function BurningDataCenterMachine() {
       return true
     }
 
-    const rasterize3DRack = () => {
+    // Rasterize all 3 Data Center Server Rack Cabinets in 3D space
+    const rasterize3DRackCluster = () => {
       if (
         Math.abs(pitch - lastRasterPitch) < 0.0008 &&
         Math.abs(yaw - lastRasterYaw) < 0.0008
@@ -396,8 +392,8 @@ export function BurningDataCenterMachine() {
 
       const aspect = w / Math.max(1, h)
       const screenCx = aspect > 1.38 ? w * 0.64 : w * 0.52
-      const screenCy = h * 0.68
-      const scaleR = Math.min(w * 0.28, h * 0.24)
+      const screenCy = h * 0.7
+      const scaleR = Math.min(w * 0.21, h * 0.205)
       scaleRadius = scaleR
 
       const cosY = Math.cos(yaw)
@@ -410,7 +406,7 @@ export function BurningDataCenterMachine() {
         const ry = lx * sinY + ly * cosY
         const syLocal = -lz * cosP + ry * sinP
         const szDepth = -lz * sinP - ry * cosP
-        const persp = 1 / (1 - szDepth * 0.045)
+        const persp = 1 / (1 - szDepth * 0.04)
         return {
           sx: screenCx + rx * scaleR * persp,
           sy: screenCy + syLocal * scaleR * persp,
@@ -472,91 +468,122 @@ export function BurningDataCenterMachine() {
         rasterTri(p00, 0, 0, p11, 1, 1, p01, 0, 1)
       }
 
-      const W = 0.48
-      const D = 0.58
-      const H = 1.04
+      const W = 0.35
+      const D = 0.54
+      const H = 1.02
+      const GAP = 0.08
 
-      // Leveling caster feet at the 4 bottom corners
-      const footCoords = [
-        [-W * 0.85, -D * 0.85],
-        [W * 0.85, -D * 0.85],
-        [-W * 0.85, D * 0.85],
-        [W * 0.85, D * 0.85],
+      // 3 Data Center Server Rack Cabinets arranged side-by-side in a 3-rack bank
+      const rackConfigs = [
+        { ox: -(2 * W + GAP), oy: 0.06, hScale: 0.96, bMult: 0.9 },
+        { ox: 0.0, oy: -0.04, hScale: 1.03, bMult: 1.02 },
+        { ox: 2 * W + GAP, oy: 0.04, hScale: 0.98, bMult: 0.96 },
       ]
-      for (let f = 0; f < footCoords.length; f++) {
-        const fx = footCoords[f][0]
-        const fy = footCoords[f][1]
-        const fw = 0.06
-        const ft0 = project(fx - fw, fy - fw, -H)
-        const ft1 = project(fx + fw, fy + fw, -H)
-        const fb0 = project(fx - fw, fy - fw, -H - 0.07)
-        const fb1 = project(fx + fw, fy + fw, -H - 0.07)
-        drawQuad(ft0, ft1, fb1, fb0, (_u, v) => ({
-          l: v > 0.6 ? 0.75 : 0.25,
-          burn: 0.0,
-          mask: 1,
-        }))
-      }
 
-      const ftl = project(-W, -D, H)
-      const ftr = project(W, -D, H)
-      const fbr = project(W, -D, -H)
-      const fbl = project(-W, -D, -H)
+      for (let r = 0; r < rackConfigs.length; r++) {
+        const { ox, oy, hScale, bMult } = rackConfigs[r]
+        const rH = H * hScale
+        const baseZ = -H
+        const topZ = baseZ + 2.0 * rH
 
-      const btl = project(-W, D, H)
-      const btr = project(W, D, H)
-      const bbr = project(W, D, -H)
-      const bbl = project(-W, D, -H)
-
-      const frontShader = (u: number, v: number) => {
-        const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
-        const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
-        const idx = ty * TEX_W + tx
-        return { l: frontTex[idx], burn: frontBurnTex[idx], mask: v < 0.45 ? 2 : 1 }
-      }
-
-      const rearShader = (u: number, v: number) => {
-        const tx = Math.min(TEX_W - 1, ((1 - u) * TEX_W) | 0)
-        const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
-        const idx = ty * TEX_W + tx
-        return { l: frontTex[idx] * 0.85, burn: frontBurnTex[idx], mask: v < 0.45 ? 2 : 1 }
-      }
-
-      const sideShaderR = (u: number, v: number) => {
-        const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
-        const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
-        const idx = ty * TEX_W + tx
-        return { l: sideTex[idx], burn: sideBurnTex[idx], mask: v < 0.35 ? 2 : 1 }
-      }
-
-      const sideShaderL = (u: number, v: number) => {
-        const tx = Math.min(TEX_W - 1, ((1 - u) * TEX_W) | 0)
-        const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
-        const idx = ty * TEX_W + tx
-        return { l: sideTex[idx] * 0.82, burn: sideBurnTex[idx], mask: v < 0.35 ? 2 : 1 }
-      }
-
-      const topShader = (u: number, v: number) => {
-        const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
-        const ty = Math.min(TEX_W - 1, (v * TEX_W) | 0)
-        const dc = Math.hypot(u - 0.5, v - 0.5)
-        return {
-          l: topTex[ty * TEX_W + tx],
-          burn: dc < 0.62 ? 1.0 : 0.75,
-          mask: 3,
+        // 4 Leveling caster feet per cabinet
+        const footCoords = [
+          [ox - W * 0.82, oy - D * 0.82],
+          [ox + W * 0.82, oy - D * 0.82],
+          [ox - W * 0.82, oy + D * 0.82],
+          [ox + W * 0.82, oy + D * 0.82],
+        ]
+        for (let f = 0; f < footCoords.length; f++) {
+          const fx = footCoords[f][0]
+          const fy = footCoords[f][1]
+          const fw = 0.048
+          const ft0 = project(fx - fw, fy - fw, baseZ)
+          const ft1 = project(fx + fw, fy + fw, baseZ)
+          const fb0 = project(fx - fw, fy - fw, baseZ - 0.07)
+          const fb1 = project(fx + fw, fy + fw, baseZ - 0.07)
+          drawQuad(ft0, ft1, fb1, fb0, (_u, v) => ({
+            l: v > 0.6 ? 0.75 : 0.25,
+            burn: 0.0,
+            mask: 1,
+          }))
         }
-      }
 
-      drawQuad(ftl, ftr, fbr, fbl, frontShader)
-      drawQuad(btr, btl, bbl, bbr, rearShader)
-      drawQuad(ftr, btr, bbr, fbr, sideShaderR)
-      drawQuad(btl, ftl, fbl, bbl, sideShaderL)
-      drawQuad(btl, btr, ftr, ftl, topShader)
+        const ftl = project(ox - W, oy - D, topZ)
+        const ftr = project(ox + W, oy - D, topZ)
+        const fbr = project(ox + W, oy - D, baseZ)
+        const fbl = project(ox - W, oy - D, baseZ)
+
+        const btl = project(ox - W, oy + D, topZ)
+        const btr = project(ox + W, oy + D, topZ)
+        const bbr = project(ox + W, oy + D, baseZ)
+        const bbl = project(ox - W, oy + D, baseZ)
+
+        const frontShader = (u: number, v: number) => {
+          const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
+          const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
+          const idx = ty * TEX_W + tx
+          return {
+            l: Math.min(0.99, frontTex[idx] * bMult),
+            burn: frontBurnTex[idx],
+            mask: v < 0.45 ? 2 : 1,
+          }
+        }
+
+        const rearShader = (u: number, v: number) => {
+          const tx = Math.min(TEX_W - 1, ((1 - u) * TEX_W) | 0)
+          const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
+          const idx = ty * TEX_W + tx
+          return {
+            l: Math.min(0.99, frontTex[idx] * 0.82 * bMult),
+            burn: frontBurnTex[idx],
+            mask: v < 0.45 ? 2 : 1,
+          }
+        }
+
+        const sideShaderR = (u: number, v: number) => {
+          const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
+          const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
+          const idx = ty * TEX_W + tx
+          return {
+            l: Math.min(0.99, sideTex[idx] * bMult),
+            burn: sideBurnTex[idx],
+            mask: v < 0.35 ? 2 : 1,
+          }
+        }
+
+        const sideShaderL = (u: number, v: number) => {
+          const tx = Math.min(TEX_W - 1, ((1 - u) * TEX_W) | 0)
+          const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
+          const idx = ty * TEX_W + tx
+          return {
+            l: Math.min(0.99, sideTex[idx] * 0.8 * bMult),
+            burn: sideBurnTex[idx],
+            mask: v < 0.35 ? 2 : 1,
+          }
+        }
+
+        const topShader = (u: number, v: number) => {
+          const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
+          const ty = Math.min(TEX_W - 1, (v * TEX_W) | 0)
+          const dc = Math.hypot(u - 0.5, v - 0.5)
+          return {
+            l: Math.min(0.99, topTex[ty * TEX_W + tx] * bMult),
+            burn: dc < 0.65 ? 1.0 : 0.8,
+            mask: 3,
+          }
+        }
+
+        drawQuad(ftl, ftr, fbr, fbl, frontShader)
+        drawQuad(btr, btl, bbl, bbr, rearShader)
+        drawQuad(ftr, btr, bbr, fbr, sideShaderR)
+        drawQuad(btl, ftl, fbl, bbl, sideShaderL)
+        drawQuad(btl, btr, ftr, ftl, topShader)
+      }
 
       const roofCenter = project(0, 0, H * 0.72)
       plumeCx = roofCenter.sx
       plumeCy = roofCenter.sy
-      plumeSpanX = scaleR * 1.15
+      plumeSpanX = scaleR * 1.85
 
       emitterCount = 0
       for (let y = 1; y < h - 1; y++) {
@@ -611,13 +638,13 @@ export function BurningDataCenterMachine() {
       for (let y = 0; y < h - 3; y++) {
         const row = y * w
         const heightFrac = Math.max(0, (plumeCy - y) / Math.max(1, plumeCy))
-        const chimneyWave = Math.sin(heightFrac * 4.8 - t * 2.1) * (5.0 * heightFrac)
-        const maxSpanInv = 1 / Math.max(1, plumeSpanX * (1.08 - heightFrac * 0.12))
+        const chimneyWave = Math.sin(heightFrac * 4.8 - t * 2.1) * (5.5 * heightFrac)
+        const maxSpanInv = 1 / Math.max(1, plumeSpanX * (1.06 - heightFrac * 0.18))
 
         for (let x = 2; x < w - 2; x++) {
           const i = row + x
-          const swirl = (fastFbm(x * 0.032 + t * 0.65, y * 0.028 + t * 1.8) - 0.5) * 4.6
-          const centerPull = (x - (plumeCx + chimneyWave)) * 0.016 * heightFrac
+          const swirl = (fastFbm(x * 0.032 + t * 0.65, y * 0.028 + t * 1.8) - 0.5) * 4.8
+          const centerPull = (x - (plumeCx + chimneyWave)) * 0.014 * heightFrac
           const jitter = (rand() - 0.5) * 1.8
 
           let srcX = Math.round(x + swirl + centerPull + jitter - mouseWindX * 1.8)
@@ -664,13 +691,13 @@ export function BurningDataCenterMachine() {
       if (!pixels) return
       const dst = pixels.data
       const t = tick * 0.042
-      const invTopSpan = 1 / Math.max(1, scaleRadius * 0.45)
+      const invTopSpan = 1 / Math.max(1, scaleRadius * 0.5)
 
       for (let y = 0; y < h; y++) {
         const row = y * w
         const topHeightFactor = Math.max(
           0,
-          Math.min(1, (plumeCy + scaleRadius * 0.18 - y) * invTopSpan)
+          Math.min(1, (plumeCy + scaleRadius * 0.22 - y) * invTopSpan)
         )
 
         for (let x = 0; x < w; x++) {
@@ -744,16 +771,16 @@ export function BurningDataCenterMachine() {
       ctx.putImageData(pixels, 0, 0)
     }
 
-    // Instant <5ms analytical plume ignition on mount
+    // Instant <5ms analytical plume ignition on mount across all 3 server racks
     const igniteInstant = () => {
-      rasterize3DRack()
+      rasterize3DRackCluster()
       heat.fill(0)
-      const maxY = Math.min(h - 4, Math.floor(plumeCy + scaleRadius * 0.45))
+      const maxY = Math.min(h - 4, Math.floor(plumeCy + scaleRadius * 0.48))
       for (let y = 0; y < maxY; y++) {
         const row = y * w
         const heightFrac = Math.max(0, (plumeCy - y) / Math.max(1, plumeCy))
-        const wave = Math.sin(heightFrac * 4.5) * (5.0 * heightFrac)
-        const halfSpan = plumeSpanX * (0.78 - heightFrac * 0.22)
+        const wave = Math.sin(heightFrac * 4.5) * (5.5 * heightFrac)
+        const halfSpan = plumeSpanX * (0.8 - heightFrac * 0.22)
         const minX = Math.max(2, Math.floor(plumeCx + wave - halfSpan))
         const maxX = Math.min(w - 3, Math.ceil(plumeCx + wave + halfSpan))
         for (let x = minX; x <= maxX; x++) {
@@ -781,7 +808,7 @@ export function BurningDataCenterMachine() {
       }
       pitch = Math.max(0.08, Math.min(0.68, pitch))
 
-      rasterize3DRack()
+      rasterize3DRackCluster()
       stepHeat()
       stepHeat()
       paint()

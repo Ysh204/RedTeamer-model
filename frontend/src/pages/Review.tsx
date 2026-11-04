@@ -1,4 +1,4 @@
-import { useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { Shell } from '../chrome'
 
 const MAX = 6000
@@ -409,6 +409,16 @@ export function ReviewPage() {
   const [code, setCode] = useState<string>('')
   const [activeExample, setActiveExample] = useState<string>('')
   const [busy, setBusy] = useState(false)
+  const [splitPercent, setSplitPercent] = useState<number>(() => {
+    const saved =
+      typeof window !== 'undefined'
+        ? localStorage.getItem('redteamer_split_ratio')
+        : null
+    return saved ? Math.min(75, Math.max(18, Number(saved))) : 34
+  })
+  const [isDragging, setIsDragging] = useState(false)
+  const workspaceRef = useRef<HTMLDivElement>(null)
+
   const [steps, setSteps] = useState<Record<StepKey, StepState>>({
     attacker: 'pending',
     critic: 'pending',
@@ -421,6 +431,42 @@ export function ReviewPage() {
 
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const gutterRef = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!isDragging) return
+    const handleMouseMove = (e: MouseEvent) => {
+      if (!workspaceRef.current) return
+      const rect = workspaceRef.current.getBoundingClientRect()
+      const offsetX = e.clientX - rect.left
+      const newPercent = Math.min(
+        75,
+        Math.max(18, (offsetX / rect.width) * 100),
+      )
+      setSplitPercent(newPercent)
+    }
+    const handleMouseUp = () => {
+      setIsDragging(false)
+      localStorage.setItem('redteamer_split_ratio', String(splitPercent))
+    }
+    window.addEventListener('mousemove', handleMouseMove)
+    window.addEventListener('mouseup', handleMouseUp)
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, splitPercent])
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    e.preventDefault()
+    setIsDragging(true)
+  }
+
+  const scrollToSection = (id: string) => {
+    const el = document.getElementById(id)
+    if (el) {
+      el.scrollIntoView({ behavior: 'smooth', block: 'start' })
+    }
+  }
 
   const chars = code.length
   const lines = useMemo(() => code.split('\n'), [code])
@@ -541,6 +587,41 @@ export function ReviewPage() {
           <span className={`lab-count ${over ? 'is-over' : ''}`}>
             {chars.toLocaleString()} / {MAX.toLocaleString()}
           </span>
+          <div className="split-presets" title="Pane Width Presets">
+            <button
+              type="button"
+              className={`preset-btn ${splitPercent <= 24 ? 'is-active' : ''}`}
+              onClick={() => {
+                setSplitPercent(20)
+                localStorage.setItem('redteamer_split_ratio', '20')
+              }}
+              title="Max Output (20% Code / 80% Output)"
+            >
+              80% Output
+            </button>
+            <button
+              type="button"
+              className={`preset-btn ${splitPercent > 24 && splitPercent < 44 ? 'is-active' : ''}`}
+              onClick={() => {
+                setSplitPercent(34)
+                localStorage.setItem('redteamer_split_ratio', '34')
+              }}
+              title="Wide Output (34% Code / 66% Output)"
+            >
+              66% Output
+            </button>
+            <button
+              type="button"
+              className={`preset-btn ${splitPercent >= 44 ? 'is-active' : ''}`}
+              onClick={() => {
+                setSplitPercent(50)
+                localStorage.setItem('redteamer_split_ratio', '50')
+              }}
+              title="Balanced (50% Code / 50% Output)"
+            >
+              50 / 50
+            </button>
+          </div>
           <button
             type="button"
             className={`review-btn ${busy ? 'is-busy' : ''}`}
@@ -568,9 +649,15 @@ export function ReviewPage() {
           </button>
         </header>
 
-        <div className="lab-workspace">
+        <div
+          className={`lab-workspace ${isDragging ? 'is-resizing' : ''}`}
+          ref={workspaceRef}
+        >
           {/* Left Column: Code Editor */}
-          <div className="lab-editor">
+          <div
+            className="lab-editor"
+            style={{ width: `${splitPercent}%`, flex: `0 0 ${splitPercent}%` }}
+          >
             <div className="lab-editor-meta">
               <div className="meta-left">
                 <span className="file-chip">
@@ -670,8 +757,20 @@ export function ReviewPage() {
             </div>
           </div>
 
+          {/* Draggable Resizer Splitter */}
+          <div
+            className={`lab-resizer ${isDragging ? 'is-active' : ''}`}
+            onMouseDown={handleMouseDown}
+            title="Click and drag to resize editor and output panes"
+          >
+            <div className="resizer-handle" />
+          </div>
+
           {/* Right Column: Stepper & Triage Output */}
-          <aside className="lab-side">
+          <aside
+            className="lab-side"
+            style={{ width: `${100 - splitPercent}%`, flex: '1 1 0%' }}
+          >
             <ol className="stepper">
               {(Object.keys(STEP_CONFIG) as StepKey[]).map((key, i) => {
                 const conf = STEP_CONFIG[key]
@@ -773,6 +872,68 @@ export function ReviewPage() {
                 </div>
               ) : (
                 <div className="results">
+                  {/* Quick Navigation Anchor Bar */}
+                  <div className="output-quick-nav">
+                    <span className="quick-nav-label">JUMP TO:</span>
+                    {finding ? (
+                      <button
+                        type="button"
+                        className="quick-nav-pill"
+                        onClick={() => scrollToSection('sec-verdict')}
+                      >
+                        ⚠️ Vulnerability
+                      </button>
+                    ) : null}
+                    {result.critic ? (
+                      <button
+                        type="button"
+                        className="quick-nav-pill"
+                        onClick={() => scrollToSection('sec-critic')}
+                      >
+                        🛡️ Critic Gate
+                      </button>
+                    ) : null}
+                    {result.patcher?.status === 'patch_proposed' ? (
+                      <button
+                        type="button"
+                        className="quick-nav-pill"
+                        onClick={() => scrollToSection('sec-patch')}
+                      >
+                        ✦ Patch Diff
+                      </button>
+                    ) : null}
+                    {result.patcher?.regression_tests?.length ? (
+                      <button
+                        type="button"
+                        className="quick-nav-pill"
+                        onClick={() => scrollToSection('sec-tests')}
+                      >
+                        🧪 Tests
+                      </button>
+                    ) : null}
+                    <button
+                      type="button"
+                      className="quick-nav-expand"
+                      onClick={() => {
+                        const next = splitPercent <= 24 ? 34 : 20
+                        setSplitPercent(next)
+                        localStorage.setItem(
+                          'redteamer_split_ratio',
+                          String(next),
+                        )
+                      }}
+                      title={
+                        splitPercent <= 24
+                          ? 'Restore 66% width'
+                          : 'Maximize output width to 80%'
+                      }
+                    >
+                      {splitPercent <= 24
+                        ? '⤡ Restore (66%)'
+                        : '⤢ Maximize Output (80%)'}
+                    </button>
+                  </div>
+
                   {result.note ? (
                     <div className="demo-notice-bar selectable">
                       <span className="info-icon">ℹ</span>
@@ -782,7 +943,7 @@ export function ReviewPage() {
 
                   {/* Vulnerability Verdict Card */}
                   {finding ? (
-                    <article className="verdict-card">
+                    <article id="sec-verdict" className="verdict-card">
                       <div className="verdict-header">
                         <div className="verdict-tags">
                           <span className="cwe-chip">{finding.cwe}</span>
@@ -830,6 +991,7 @@ export function ReviewPage() {
                       {/* Critic Audit Gate Sub-Card */}
                       {result.critic ? (
                         <div
+                          id="sec-critic"
                           className={`critic-audit-box is-${result.critic.verdict}`}
                         >
                           <div className="critic-audit-head">
@@ -898,7 +1060,7 @@ export function ReviewPage() {
 
                   {/* Patch Proposal Card */}
                   {result.patcher?.status === 'patch_proposed' ? (
-                    <article className="patch-card">
+                    <article id="sec-patch" className="patch-card">
                       <div className="patch-card-header">
                         <div>
                           <div className="patch-chip-row">
@@ -987,7 +1149,7 @@ export function ReviewPage() {
 
                       {/* Regression Tests */}
                       {result.patcher.regression_tests?.length ? (
-                        <div className="tests-section">
+                        <div id="sec-tests" className="tests-section">
                           <span className="tests-title">
                             TEST INVARIANTS & REGRESSION SPECS
                           </span>
