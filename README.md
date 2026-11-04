@@ -1,9 +1,10 @@
 # Security Red-Teamer Prototype
 
 A local review interface for a three-stage security review flow. The app uses
-the shared V5 adapter for Attacker and Critic, then switches to the Patcher
-specialist adapter only after the Critic confirms a finding. It loads one
-Qwen3-4B base model and attaches both LoRA adapters to it.
+the shared V5 adapter for the Attacker, the specialist Critic v1 adapter for
+independent verification, and the specialist Patcher v3.1 adapter for proposing
+code fixes after confirmation. It loads one Qwen3-4B base model and attaches all
+three LoRA adapters to it.
 
 ## Limits
 
@@ -31,6 +32,13 @@ storage, then place them here:
     adapter_model.safetensors
     tokenizer_config.json
     tokenizer.json
+  critic_agent/
+    critic_v1_export/
+      adapter/
+        adapter_config.json
+        adapter_model.safetensors
+        tokenizer_config.json
+        tokenizer.json
   patcher_agent/
     patcher_v31_export/
       adapter/
@@ -40,11 +48,12 @@ storage, then place them here:
         tokenizer.json
 ```
 
-The Patcher runtime source at
-`patcher_agent/patcher_v31_export/patcher_runtime.py` is tracked in Git; only
-the local `adapter/` export is ignored. The first app load downloads the
+The Critic and Patcher runtime sources at
+`critic_agent/critic_v1_export/critic_runtime.py` and
+`patcher_agent/patcher_v31_export/patcher_runtime.py` are tracked in Git; only
+the local `adapter/` exports are ignored. The first app load downloads the
 Qwen3-4B base model from Hugging Face if it is not already in the Hugging Face
-cache. Both adapters use that same base model.
+cache. All adapters use that same base model.
 
 ## Run on Windows
 
@@ -96,16 +105,19 @@ To check whether PyTorch can see the GPU:
 
 ## Adapter locations
 
-By default, the app loads the shared Attacker/Critic adapter from
-`security-redteamer-qwen3-lora-v5` and the specialist Patcher adapter from
-`patcher_agent/patcher_v31_export/adapter`, both relative to the repository
-root.
+By default, the app loads:
+- Attacker: `security-redteamer-qwen3-lora-v5`
+- Critic specialist: `critic_agent/critic_v1_export/adapter`
+- Patcher specialist: `patcher_agent/patcher_v31_export/adapter`
+
+All paths are relative to the repository root.
 
 To use adapter copies at other paths, set these variables before starting the
 app:
 
 ```powershell
 $env:REDTEAMER_ADAPTER = "D:\path\to\shared_adapter"
+$env:REDTEAMER_CRITIC_ADAPTER = "D:\path\to\critic_adapter"
 $env:REDTEAMER_PATCHER_ADAPTER = "D:\path\to\patcher_adapter"
 ```
 

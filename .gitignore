@@ -13,9 +13,10 @@ __pycache__/
 .hf_cache/
 
 # Adapter exports and downloaded model weights are stored outside Git.
-# The Patcher runtime source remains tracked.
+# The Patcher and Critic runtime sources remain tracked.
 security-redteamer-qwen3-lora-v5/
 patcher_agent/patcher_v31_export/adapter/
+critic_agent/critic_v1_export/adapter/
 *.safetensors
 *.gguf
 *.pt
