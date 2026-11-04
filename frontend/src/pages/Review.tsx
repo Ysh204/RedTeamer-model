@@ -357,47 +357,40 @@ export function ReviewPage() {
   return (
     <Shell>
       <section className="panel lab">
-        <div className="panel-head compact">
-          <p className="eyebrow">
-            <span className="diamonds" aria-hidden="true">
-              <i />
-              <i />
-            </span>
-            PYTHON SNIPPET · {MAX.toLocaleString()} CHAR LIMIT
+        <header className="lab-toolbar">
+          <div className="example-row">
+            {EXAMPLES.map((ex) => (
+              <button
+                key={ex.id}
+                type="button"
+                className={activeExample === ex.id ? 'is-on' : ''}
+                onClick={() => {
+                  setActiveExample(ex.id)
+                  setCode(ex.code)
+                  setResult(null)
+                }}
+              >
+                {ex.label}
+                <small>{ex.hint}</small>
+              </button>
+            ))}
+          </div>
+          <p className="lab-disclaimer">
+            Experimental · human review required · patches are never applied
           </p>
-          <h1>
-            <span className="line">
-              Review, then <em>doubt</em> it.
-            </span>
-          </h1>
-          <p className="lede selectable">
-            Experimental review aid. All proposals require human review. The tool never applies a
-            patch.
-          </p>
-        </div>
+          <span className={`lab-count ${over ? 'is-over' : ''}`}>
+            {chars.toLocaleString()} / {MAX.toLocaleString()}
+          </span>
+          <button type="button" className="review-btn" onClick={review} disabled={busy || over}>
+            {busy ? 'Reviewing…' : 'Run review'}
+          </button>
+        </header>
 
-        <div className="lab-grid">
-          <div className="handle-box editor-wrap">
-            <i className="handle tl" />
-            <i className="handle tr" />
-            <i className="handle bl" />
-            <i className="handle br" />
-            <div className="example-row">
-              {EXAMPLES.map((ex) => (
-                <button
-                  key={ex.id}
-                  type="button"
-                  className={activeExample === ex.id ? 'is-on' : ''}
-                  onClick={() => {
-                    setActiveExample(ex.id)
-                    setCode(ex.code)
-                    setResult(null)
-                  }}
-                >
-                  {ex.label}
-                  <small>{ex.hint}</small>
-                </button>
-              ))}
+        <div className="lab-workspace">
+          <div className="lab-editor">
+            <div className="lab-editor-meta">
+              <span>snippet.py</span>
+              <span>python</span>
             </div>
             <textarea
               value={code}
@@ -408,112 +401,114 @@ export function ReviewPage() {
               }}
               aria-label="Python snippet"
             />
-            <div className="editor-bar">
-              <span className={over ? 'is-over' : ''}>
-                {chars.toLocaleString()} / {MAX.toLocaleString()}
-              </span>
-              <button type="button" className="review-btn" onClick={review} disabled={busy || over}>
-                {busy ? 'Reviewing…' : 'Review Code'}
-              </button>
-            </div>
           </div>
 
-          <ol className="stepper">
-            {(Object.keys(STEP_LABEL) as StepKey[]).map((key, i) => (
-              <li key={key} className={`step is-${steps[key]}`}>
-                <span>{String(i + 1).padStart(2, '0')}</span>
-                <div>
-                  <strong>{STEP_LABEL[key]}</strong>
-                  <em>{stepCaption[key]}</em>
-                </div>
-              </li>
-            ))}
-          </ol>
-        </div>
+          <aside className="lab-side">
+            <ol className="stepper">
+              {(Object.keys(STEP_LABEL) as StepKey[]).map((key, i) => (
+                <li key={key} className={`step is-${steps[key]}`}>
+                  <span>{String(i + 1).padStart(2, '0')}</span>
+                  <div>
+                    <strong>{STEP_LABEL[key]}</strong>
+                    <em>{stepCaption[key]}</em>
+                  </div>
+                </li>
+              ))}
+            </ol>
 
-        {result ? (
-          <div className="results">
-            {result.note ? <p className="demo-note selectable">{result.note}</p> : null}
-
-            {finding ? (
-              <article className="handle-box verdict">
-                <i className="handle tl" />
-                <i className="handle tr" />
-                <i className="handle bl" />
-                <i className="handle br" />
-                <div className="verdict-top">
-                  <span className="cwe">{finding.cwe}</span>
-                  <span className={`sev sev-${finding.severity}`}>{finding.severity}</span>
-                </div>
-                <p className="selectable">{finding.impact}</p>
-                <pre className="evidence selectable">{finding.evidence}</pre>
-                {result.critic?.reason ? (
-                  <p className="critic-reason selectable">
-                    Critic ({result.critic.verdict}): {result.critic.reason}
+            <div className="lab-output">
+              {!result ? (
+                <div className="lab-idle">
+                  <p className="eyebrow">
+                    <span className="diamonds" aria-hidden="true">
+                      <i />
+                      <i />
+                    </span>
+                    TRIAGE
                   </p>
-                ) : null}
-              </article>
-            ) : (
-              <article className="handle-box verdict">
-                <i className="handle tl" />
-                <i className="handle tr" />
-                <i className="handle bl" />
-                <i className="handle br" />
-                <p className="selectable">
-                  Attacker status: {result.attacker?.status ?? 'unknown'}
-                  {result.attacker?.missing_context?.length
-                    ? ` · missing ${result.attacker.missing_context.join(', ')}`
-                    : ''}
-                </p>
-              </article>
-            )}
+                  <h2>
+                    Findings, critic gate, and diffs
+                    <em> land here.</em>
+                  </h2>
+                  <p>
+                    Load a fixture or paste Python. Attacker flags a CWE, critic confirms or
+                    rejects it, patcher only runs if evidence is grounded.
+                  </p>
+                </div>
+              ) : (
+                <div className="results">
+                  {result.note ? <p className="demo-note selectable">{result.note}</p> : null}
 
-            {result.patcher?.status === 'patch_proposed' ? (
-              <article className="handle-box patch-card">
-                <i className="handle tl" />
-                <i className="handle tr" />
-                <i className="handle bl" />
-                <i className="handle br" />
-                <h2>Patch proposal</h2>
-                <p className="selectable">{result.patcher.summary}</p>
-                {result.patcher.patch ? (
-                  <pre className="diff selectable">{result.patcher.patch}</pre>
-                ) : null}
-                <ul className="check-pills">
-                  {Object.entries(checks).map(([k, ok]) => (
-                    <li key={k} className={ok ? 'ok' : 'bad'}>
-                      {ok ? '✓' : '×'} {k.replaceAll('_', ' ')}
-                    </li>
-                  ))}
-                </ul>
-                {result.patcher.regression_tests?.length ? (
-                  <ul className="tests selectable">
-                    {result.patcher.regression_tests.map((t) => (
-                      <li key={t}>{t}</li>
-                    ))}
-                  </ul>
-                ) : null}
-              </article>
-            ) : null}
+                  {finding ? (
+                    <article className="verdict">
+                      <div className="verdict-top">
+                        <span className="cwe">{finding.cwe}</span>
+                        <span className={`sev sev-${finding.severity}`}>{finding.severity}</span>
+                      </div>
+                      <p className="selectable">{finding.impact}</p>
+                      <pre className="evidence selectable">{finding.evidence}</pre>
+                      {result.critic?.reason ? (
+                        <p className="critic-reason selectable">
+                          Critic ({result.critic.verdict}): {result.critic.reason}
+                        </p>
+                      ) : null}
+                    </article>
+                  ) : (
+                    <article className="verdict">
+                      <p className="selectable">
+                        Attacker status: {result.attacker?.status ?? 'unknown'}
+                        {result.attacker?.missing_context?.length
+                          ? ` · missing ${result.attacker.missing_context.join(', ')}`
+                          : ''}
+                      </p>
+                    </article>
+                  )}
 
-            <div className="telemetry">
-              {(['attacker', 'critic', 'patcher'] as const).map((key) =>
-                result[key] ? (
-                  <details
-                    key={key}
-                    open={openJson === key}
-                    onToggle={(e) => {
-                      if ((e.target as HTMLDetailsElement).open) setOpenJson(key)
-                    }}
-                  >
-                    <summary>{key} json</summary>
-                    <pre className="selectable">{JSON.stringify(result[key], null, 2)}</pre>
-                  </details>
-                ) : null,
+                  {result.patcher?.status === 'patch_proposed' ? (
+                    <article className="patch-card">
+                      <h2>Patch proposal</h2>
+                      <p className="selectable">{result.patcher.summary}</p>
+                      {result.patcher.patch ? (
+                        <pre className="diff selectable">{result.patcher.patch}</pre>
+                      ) : null}
+                      <ul className="check-pills">
+                        {Object.entries(checks).map(([k, ok]) => (
+                          <li key={k} className={ok ? 'ok' : 'bad'}>
+                            {ok ? '✓' : '×'} {k.replaceAll('_', ' ')}
+                          </li>
+                        ))}
+                      </ul>
+                      {result.patcher.regression_tests?.length ? (
+                        <ul className="tests selectable">
+                          {result.patcher.regression_tests.map((t) => (
+                            <li key={t}>{t}</li>
+                          ))}
+                        </ul>
+                      ) : null}
+                    </article>
+                  ) : null}
+
+                  <div className="telemetry">
+                    {(['attacker', 'critic', 'patcher'] as const).map((key) =>
+                      result[key] ? (
+                        <details
+                          key={key}
+                          open={openJson === key}
+                          onToggle={(e) => {
+                            if ((e.target as HTMLDetailsElement).open) setOpenJson(key)
+                          }}
+                        >
+                          <summary>{key} json</summary>
+                          <pre className="selectable">{JSON.stringify(result[key], null, 2)}</pre>
+                        </details>
+                      ) : null,
+                    )}
+                  </div>
+                </div>
               )}
             </div>
-          </div>
-        ) : null}
+          </aside>
+        </div>
       </section>
     </Shell>
   )
