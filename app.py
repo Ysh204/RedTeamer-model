@@ -298,7 +298,10 @@ quote the relevant source text exactly, not paraphrase it, so the Patcher can
 locate the code that needs changing. Do not include patches.
 Choose the CWE from the vulnerable operation and source-to-sink flow, not
 from variable or helper names. SQL query construction from untrusted input is
-CWE-89; unescaped data rendered into HTML or JavaScript is CWE-79. A helper
+CWE-89; command execution with unquoted input, concatenation, or shell=True is
+CWE-78; path traversal via unvalidated file paths or concatenation is CWE-22;
+unescaped data rendered into HTML or JavaScript is CWE-79; hardcoded secret or
+token is CWE-798; insecure deserialization via pickle or yaml is CWE-502. A helper
 named "escape" or "validate" is not proof that its implementation is safe.
 If a helper's behavior is needed to decide, use status "needs_more_context",
 set "findings" to [], and name the missing implementation in "missing_context".
