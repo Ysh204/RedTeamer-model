@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 
 const BAYER8 = [
   [0, 32, 8, 40, 2, 34, 10, 42],
@@ -87,7 +87,7 @@ function fastFbm(x: number, y: number): number {
   return FBM_LUT[(iy << 8) | ix]
 }
 
-export function BurningCpu() {
+export function BurningDataCenterMachine() {
   const canvasRef = useRef<HTMLCanvasElement>(null)
 
   useEffect(() => {
@@ -109,16 +109,16 @@ export function BurningCpu() {
     let next = new Float32Array(0)
     let ember = new Float32Array(0)
     let luma = new Float32Array(0)
-    let cpuMask = new Uint8Array(0)
+    let rackMask = new Uint8Array(0)
     let burnZone = new Float32Array(0)
     let depthBuf = new Float32Array(0)
     let emitterList = new Int32Array(0)
     let emitterCount = 0
     let pixels: ImageData | null = null
 
-    // Sleek foreshortened 3D perspective angle
-    const DEFAULT_PITCH = 0.82
-    const DEFAULT_YAW = -0.66
+    // Three-quarter upright perspective matching the EDGERACK Data Center Server Cabinet reference images
+    const DEFAULT_PITCH = 0.28
+    const DEFAULT_YAW = -0.6
     let pitch = DEFAULT_PITCH
     let yaw = DEFAULT_YAW
     let targetPitch = DEFAULT_PITCH
@@ -133,105 +133,217 @@ export function BurningCpu() {
     let mouseWindX = 0
     let surgeHeat = 0
 
-    let cpuCenterX = 0
-    let cpuCenterY = 0
-    let cpuRadius = 60
-    let cpuSpanX = 60
+    let plumeCx = 0
+    let plumeCy = 0
+    let scaleRadius = 60
+    let plumeSpanX = 60
 
-    // Pre-generate iconic 3D CPU textures (160x160):
-    // Smooth brushed-metal IHS heat spreader plate with chamfered corners, side indents,
-    // front Pin-1 fiducial dot, subtle laser-etched text bars, stepped IHS flange,
-    // dark PCB wafer with gold contact pads & Pin-1 corner triangle, and underside PGA pins
-    const TEX_SIZE = 160
-    const lidTex = new Float32Array(TEX_SIZE * TEX_SIZE)
-    const lidMaskTex = new Uint8Array(TEX_SIZE * TEX_SIZE)
-    const flangeMaskTex = new Uint8Array(TEX_SIZE * TEX_SIZE)
-    const pcbTex = new Float32Array(TEX_SIZE * TEX_SIZE)
+    // Pre-generate high-detail 3D Data Center Server Rack Textures (128x224):
+    // 1. Front Door: brushed dark-steel frame, swing-handle latch with lock cylinder,
+    //    upper EDGERACK header window, silver LCD telemetry touch display, and tall glass door
+    //    showing internal 19" mounting rails with cage-nut holes & 1U/2U server blades.
+    // 2. Side Panel: split upper & lower removable panels with horizontal divider bar,
+    //    4 recessed slam-latches, upper dark rectangular exhaust window with bright bezel, and diagonal metallic sheen.
+    // 3. Top Roof Panel: dual exhaust fan grilles & cable entry slots.
+    const TEX_W = 128
+    const TEX_H = 224
+    const frontTex = new Float32Array(TEX_W * TEX_H)
+    const frontBurnTex = new Float32Array(TEX_W * TEX_H)
+    const sideTex = new Float32Array(TEX_W * TEX_H)
+    const sideBurnTex = new Float32Array(TEX_W * TEX_H)
+    const topTex = new Float32Array(TEX_W * TEX_W)
 
-    for (let ty = 0; ty < TEX_SIZE; ty++) {
-      for (let tx = 0; tx < TEX_SIZE; tx++) {
-        const u = tx / (TEX_SIZE - 1)
-        const v = ty / (TEX_SIZE - 1)
-        const idx = ty * TEX_SIZE + tx
-        const ax = Math.abs(u - 0.5) * 2
-        const ay = Math.abs(v - 0.5) * 2
-        const maxC = Math.max(ax, ay)
+    for (let ty = 0; ty < TEX_H; ty++) {
+      const v = ty / (TEX_H - 1)
+      for (let tx = 0; tx < TEX_W; tx++) {
+        const u = tx / (TEX_W - 1)
+        const idx = ty * TEX_W + tx
 
-        // 1. Clean Iconic CPU PCB Substrate Wafer
-        let pcb = 0.12
-        if (maxC > 0.96) {
-          pcb = 0.88
-        } else if (maxC > 0.88 && maxC <= 0.94) {
-          const inPadSpanX = ax < 0.82 && tx % 4 < 2
-          const inPadSpanY = ay < 0.82 && ty % 4 < 2
-          if ((ay > 0.88 && inPadSpanX) || (ax > 0.88 && inPadSpanY)) {
-            pcb = 0.85
+        // Brushed dark-anodized steel front door frame
+        let frame = 0.28 + (1 - u) * 0.12 + (1 - v) * 0.08
+        if (u < 0.025 || v < 0.015) {
+          frame = 0.88
+        } else if (u > 0.965) {
+          frame = 0.72
+        } else if ((u > 0.045 && u < 0.062) || (u > 0.935 && u < 0.95)) {
+          frame = 0.14
+        }
+
+        let val = frame
+        let burn = 0.0
+
+        // Left swing-handle latch (v in 0.43..0.53, u in 0.045..0.125)
+        if (v >= 0.43 && v <= 0.53 && u >= 0.045 && u <= 0.125) {
+          if (v >= 0.435 && v <= 0.525 && u >= 0.06 && u <= 0.11) {
+            val = 0.06
+            if (v >= 0.45 && v <= 0.5 && u >= 0.075 && u <= 0.095) {
+              val = 0.68
+            }
+            if (Math.abs(v - 0.512) < 0.008 && Math.abs(u - 0.085) < 0.012) {
+              val = 0.95
+            }
+          } else {
+            val = 0.78
           }
         }
-        // Iconic Pin-1 gold corner triangle at the front vertex
-        if (u < 0.17 && v > 0.83 && u + (1 - v) < 0.19) {
-          pcb = 0.96
-        }
-        // Subtle micro-traces on PCB shoulder
-        if (maxC >= 0.76 && maxC <= 0.86) {
-          if ((tx % 8 === 0 && ax < 0.7) || (ty % 8 === 0 && ay < 0.7)) {
-            pcb = 0.26
+
+        const inWindowX = u >= 0.17 && u <= 0.83
+
+        // A) Upper EDGERACK Header Window (v in 0.055..0.19)
+        if (inWindowX && v >= 0.055 && v <= 0.19) {
+          if (u < 0.185 || u > 0.815 || v < 0.063 || v > 0.182) {
+            val = 0.75
+          } else {
+            const refl = Math.max(0, Math.sin((v - 0.09) * 26.0) * (1 - Math.abs(u - 0.45) * 1.4))
+            val = 0.12 + refl * 0.55
+            if (v >= 0.082 && v <= 0.108 && u >= 0.24 && u <= 0.76) {
+              const charCell = Math.floor((u - 0.24) * 32)
+              const rowCell = Math.floor((v - 0.082) * 160)
+              if (charCell % 2 === 0 && (rowCell === 0 || rowCell === 2 || rowCell === 3)) {
+                val = 0.96
+              }
+            }
+            burn = 0.95
           }
         }
-        pcbTex[idx] = pcb
-
-        // 2. Stepped Metallic IHS Flange Base Shoulder
-        if (ax + ay <= 1.78 && maxC <= 0.96) {
-          flangeMaskTex[idx] = 1
+        // B) Recessed LCD Telemetry Control Touch Panel (v in 0.22..0.325)
+        else if (v >= 0.22 && v <= 0.325 && u >= 0.23 && u <= 0.77) {
+          if (u < 0.265 || u > 0.735 || v < 0.235 || v > 0.31) {
+            val = 0.84
+          } else {
+            val = 0.14 + (0.65 - u) * 0.18
+            if (v >= 0.255 && v <= 0.29 && u >= 0.34 && u <= 0.66) {
+              if (((u * 48) | 0) % 3 === 0 && ((v * 90) | 0) % 2 === 0) {
+                val = 0.92
+              }
+            }
+            burn = 0.92
+          }
         }
+        // C) Tall Lower Tempered-Glass Server Bay Door (v in 0.36..0.92)
+        else if (inWindowX && v >= 0.36 && v <= 0.92) {
+          if (u < 0.185 || u > 0.815 || v < 0.368 || v > 0.912) {
+            val = 0.82
+          } else {
+            // Left & right 19-inch vertical mounting rails with square cage-nut holes
+            if ((u >= 0.195 && u <= 0.245) || (u >= 0.755 && u <= 0.805)) {
+              const railHole =
+                ty % 4 === 0 && ((u >= 0.21 && u <= 0.23) || (u >= 0.77 && u <= 0.79))
+              val = railHole ? 0.08 : 0.64
+            } else {
+              // Metallic interior cabinet wall with depth gradient
+              const depthGrad =
+                0.88 - ((u - 0.245) / 0.51) * 0.52 + Math.sin(v * 18.0) * 0.06
+              val = Math.max(0.15, Math.min(0.95, depthGrad))
 
-        // 3. Smooth Brushed-Metal CPU Integrated Heat Spreader (IHS) Plate
-        const ihsCorner = ax + ay > 1.74
-        const sideIndent = (ay < 0.26 && ax > 0.9) || (ax < 0.26 && ay > 0.9)
-        if (ihsCorner || sideIndent) {
-          lidMaskTex[idx] = 0
-          lidTex[idx] = 0
-          continue
-        }
-        lidMaskTex[idx] = 1
+              // Horizontal Server Blades / Rack Shelves & Status LEDs
+              if (
+                Math.abs(v - 0.42) < 0.018 ||
+                Math.abs(v - 0.54) < 0.022 ||
+                Math.abs(v - 0.66) < 0.018 ||
+                Math.abs(v - 0.79) < 0.016
+              ) {
+                const isLed = tx % 5 === 0 && ty % 2 === 0
+                val = isLed ? 0.96 : 0.16
+              } else if (
+                Math.abs(v - 0.445) < 0.006 ||
+                Math.abs(v - 0.568) < 0.006 ||
+                Math.abs(v - 0.682) < 0.006
+              ) {
+                val = 0.96
+              }
+            }
 
-        const grad = 0.86 - (u * 0.1 + v * 0.08)
-        const brush = Math.sin((u + v) * 90.0) * 0.018
-        let ihs = grad + brush
-
-        // Crisp chamfered perimeter highlight & subtle inner bevel line
-        if (
-          maxC > 0.93 ||
-          ax + ay > 1.68 ||
-          (ay < 0.28 && ax > 0.86) ||
-          (ax < 0.28 && ay > 0.86)
-        ) {
-          ihs = 0.98
-        } else if (maxC > 0.89 || ax + ay > 1.63) {
-          ihs = 0.42
-        }
-
-        // Iconic small dark Pin-1 fiducial circle in the front corner of the metallic IHS plate
-        const holeDistSq = (u - 0.18) * (u - 0.18) + (v - 0.82) * (v - 0.82)
-        if (holeDistSq < 0.0011) {
-          ihs = 0.08
-        } else if (holeDistSq < 0.0018) {
-          ihs = 0.96
-        }
-
-        // Subtle laser-etched processor spec markings in the center of the lid
-        if (u > 0.3 && u < 0.7 && v > 0.38 && v < 0.64) {
-          const lineY = Math.floor((v - 0.38) * 34)
-          const colX = Math.floor((u - 0.3) * 44)
-          if (lineY === 1 || lineY === 3 || lineY === 6 || lineY === 8) {
-            const maxLen = lineY === 1 || lineY === 6 ? 0.62 : lineY === 8 ? 0.54 : 0.68
-            if (u < maxLen && ((colX * 29 + lineY * 7) & 3) !== 0) {
-              ihs = 0.48
+            if (v < 0.64) {
+              burn = Math.max(0.45, Math.min(1, (0.66 - v) * 2.4))
             }
           }
         }
 
-        lidTex[idx] = Math.max(0.08, Math.min(0.99, ihs))
+        // Bottom warning/serial plate at very bottom of front door
+        if (v >= 0.945 && v <= 0.972 && u >= 0.3 && u <= 0.68) {
+          val = tx % 3 !== 0 ? 0.68 : 0.22
+        }
+
+        if (v < 0.36 && u > 0.12 && u < 0.88) {
+          burn = Math.max(burn, Math.min(1, (0.38 - v) * 2.6))
+        }
+
+        frontTex[idx] = Math.max(0.05, Math.min(0.99, val))
+        frontBurnTex[idx] = Math.min(1, burn)
+      }
+    }
+
+    // Build Side Panel Texture (split upper/lower panels, 4 slam latches, upper dark vent window, studio sheen)
+    for (let ty = 0; ty < TEX_H; ty++) {
+      const v = ty / (TEX_H - 1)
+      for (let tx = 0; tx < TEX_W; tx++) {
+        const u = tx / (TEX_W - 1)
+        const idx = ty * TEX_W + tx
+
+        const sheen =
+          Math.exp(-((u - 0.62) * (u - 0.62) * 2.8 + (v - 0.42) * (v - 0.42) * 3.2)) * 0.48
+        let val = 0.32 + sheen
+
+        if (u < 0.03 || u > 0.96 || v < 0.018 || v > 0.975) {
+          val = u < 0.02 || v < 0.012 ? 0.78 : 0.14
+        } else if (v >= 0.475 && v <= 0.512) {
+          if (Math.abs(v - 0.475) < 0.006 || Math.abs(v - 0.512) < 0.006) {
+            val = 0.12
+          } else {
+            val = 0.46 + sheen * 0.4
+          }
+        }
+
+        if (Math.abs(v - 0.055) < 0.005 && u > 0.04 && u < 0.95) {
+          val = 0.1
+        }
+
+        const inLatchV = (v >= 0.068 && v <= 0.112) || (v >= 0.525 && v <= 0.568)
+        const inLatchU = (u >= 0.18 && u <= 0.235) || (u >= 0.76 && u <= 0.815)
+        if (inLatchV && inLatchU) {
+          val = tx % 2 === 0 && ty % 2 === 0 ? 0.85 : 0.1
+        }
+
+        let burn = 0.0
+        if (v >= 0.085 && v <= 0.245 && u >= 0.42 && u <= 0.68) {
+          if (u < 0.445 || u > 0.655 || v < 0.095 || v > 0.235) {
+            val = 0.9
+          } else {
+            val = 0.07
+            burn = 0.95
+          }
+        }
+
+        if (v < 0.38 && u > 0.1 && u < 0.9) {
+          burn = Math.max(burn, Math.min(1, (0.4 - v) * 2.8))
+        }
+
+        sideTex[idx] = Math.max(0.05, Math.min(0.99, val))
+        sideBurnTex[idx] = Math.min(1, burn)
+      }
+    }
+
+    // Build Top Roof Exhaust Panel Texture
+    for (let ty = 0; ty < TEX_W; ty++) {
+      const v = ty / (TEX_W - 1)
+      for (let tx = 0; tx < TEX_W; tx++) {
+        const u = tx / (TEX_W - 1)
+        const idx = ty * TEX_W + tx
+        const maxC = Math.max(Math.abs(u - 0.5), Math.abs(v - 0.5)) * 2
+        if (maxC > 0.92) {
+          topTex[idx] = 0.88
+        } else if (maxC > 0.84) {
+          topTex[idx] = 0.24
+        } else {
+          const d1 = Math.hypot(u - 0.5, v - 0.33)
+          const d2 = Math.hypot(u - 0.5, v - 0.67)
+          if (d1 < 0.24 || d2 < 0.24) {
+            topTex[idx] = (tx + ty) % 3 === 0 ? 0.75 : 0.12
+          } else {
+            topTex[idx] = 0.42
+          }
+        }
       }
     }
 
@@ -257,7 +369,7 @@ export function BurningCpu() {
       next = new Float32Array(size)
       ember = new Float32Array(size)
       luma = new Float32Array(size)
-      cpuMask = new Uint8Array(size)
+      rackMask = new Uint8Array(size)
       burnZone = new Float32Array(size)
       depthBuf = new Float32Array(size)
       emitterList = new Int32Array(size)
@@ -267,7 +379,7 @@ export function BurningCpu() {
       return true
     }
 
-    const rasterize3DCpu = () => {
+    const rasterize3DRack = () => {
       if (
         Math.abs(pitch - lastRasterPitch) < 0.0008 &&
         Math.abs(yaw - lastRasterYaw) < 0.0008
@@ -278,19 +390,15 @@ export function BurningCpu() {
       lastRasterYaw = yaw
 
       luma.fill(0)
-      cpuMask.fill(0)
+      rackMask.fill(0)
       burnZone.fill(0)
       depthBuf.fill(-1e9)
 
       const aspect = w / Math.max(1, h)
       const screenCx = aspect > 1.38 ? w * 0.64 : w * 0.52
-      const screenCy = h * 0.67
-      const radius = Math.min(w * 0.285, h * 0.215)
-
-      cpuCenterX = screenCx
-      cpuCenterY = screenCy
-      cpuRadius = radius
-      cpuSpanX = radius * 1.15
+      const screenCy = h * 0.68
+      const scaleR = Math.min(w * 0.28, h * 0.24)
+      scaleRadius = scaleR
 
       const cosY = Math.cos(yaw)
       const sinY = Math.sin(yaw)
@@ -300,13 +408,13 @@ export function BurningCpu() {
       const project = (lx: number, ly: number, lz: number) => {
         const rx = lx * cosY - ly * sinY
         const ry = lx * sinY + ly * cosY
-        const py = ry * cosP - lz * sinP
-        const pz = ry * sinP + lz * cosP
-        const persp = 1 / (1 - pz * 0.16)
+        const syLocal = -lz * cosP + ry * sinP
+        const szDepth = -lz * sinP - ry * cosP
+        const persp = 1 / (1 - szDepth * 0.045)
         return {
-          sx: screenCx + rx * radius * persp,
-          sy: screenCy + py * radius * persp,
-          sz: pz,
+          sx: screenCx + rx * scaleR * persp,
+          sy: screenCy + syLocal * scaleR * persp,
+          sz: szDepth,
         }
       }
 
@@ -354,7 +462,7 @@ export function BurningCpu() {
                 depthBuf[idx] = z
                 luma[idx] = res.l
                 burnZone[idx] = res.burn
-                cpuMask[idx] = res.mask
+                rackMask[idx] = res.mask
               }
             }
           }
@@ -364,124 +472,92 @@ export function BurningCpu() {
         rasterTri(p00, 0, 0, p11, 1, 1, p01, 0, 1)
       }
 
-      const specBoost = Math.max(0, cosP * 0.82 - sinP * 0.22)
+      const W = 0.48
+      const D = 0.58
+      const H = 1.04
 
-      // 1. Bottom Gold Pin Grid Array (PGA) legs
-      const pgaR = 0.95
-      const p00 = project(-pgaR, -pgaR, -0.22)
-      const p10 = project(pgaR, -pgaR, -0.22)
-      const p11 = project(pgaR, pgaR, -0.22)
-      const p01 = project(-pgaR, pgaR, -0.22)
-
-      const b00 = project(-1, -1, -0.12)
-      const b10 = project(1, -1, -0.12)
-      const b11 = project(1, 1, -0.12)
-      const b01 = project(-1, 1, -0.12)
-
-      const pinSkirtShader = (light: number) => (u: number, v: number) => {
-        const pinCol = ((u * 32) | 0) % 2 === 0
-        const pinRow = ((v * 6) | 0) % 2 === 0
-        const val = pinCol ? (pinRow ? 0.94 * light : 0.35 * light) : 0.06
-        return { l: val, burn: 0.0, mask: 1 }
+      // Leveling caster feet at the 4 bottom corners
+      const footCoords = [
+        [-W * 0.85, -D * 0.85],
+        [W * 0.85, -D * 0.85],
+        [-W * 0.85, D * 0.85],
+        [W * 0.85, D * 0.85],
+      ]
+      for (let f = 0; f < footCoords.length; f++) {
+        const fx = footCoords[f][0]
+        const fy = footCoords[f][1]
+        const fw = 0.06
+        const ft0 = project(fx - fw, fy - fw, -H)
+        const ft1 = project(fx + fw, fy + fw, -H)
+        const fb0 = project(fx - fw, fy - fw, -H - 0.07)
+        const fb1 = project(fx + fw, fy + fw, -H - 0.07)
+        drawQuad(ft0, ft1, fb1, fb0, (_u, v) => ({
+          l: v > 0.6 ? 0.75 : 0.25,
+          burn: 0.0,
+          mask: 1,
+        }))
       }
-      drawQuad(b00, b10, p10, p00, pinSkirtShader(0.75))
-      drawQuad(b10, b11, p11, p10, pinSkirtShader(1.0))
-      drawQuad(b11, b01, p01, p11, pinSkirtShader(0.92))
-      drawQuad(b01, b00, p00, b01, pinSkirtShader(0.65))
 
-      // 2. PCB Fiberglass Wafer Sidewalls & Top Rim
-      const t00 = project(-1, -1, -0.01)
-      const t10 = project(1, -1, -0.01)
-      const t11 = project(1, 1, -0.01)
-      const t01 = project(-1, 1, -0.01)
+      const ftl = project(-W, -D, H)
+      const ftr = project(W, -D, H)
+      const fbr = project(W, -D, -H)
+      const fbl = project(-W, -D, -H)
 
-      const pcbWallShader = (sideLight: number) => (u: number, v: number) => {
-        const val = (v < 0.25 ? 0.9 : ((u * 28) | 0) % 2 === 0 ? 0.58 : 0.14) * sideLight
-        return { l: val, burn: 0.0, mask: 1 }
+      const btl = project(-W, D, H)
+      const btr = project(W, D, H)
+      const bbr = project(W, D, -H)
+      const bbl = project(-W, D, -H)
+
+      const frontShader = (u: number, v: number) => {
+        const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
+        const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
+        const idx = ty * TEX_W + tx
+        return { l: frontTex[idx], burn: frontBurnTex[idx], mask: v < 0.45 ? 2 : 1 }
       }
-      drawQuad(t00, t10, b10, b00, pcbWallShader(0.76))
-      drawQuad(t10, t11, b11, b10, pcbWallShader(1.0))
-      drawQuad(t11, t01, b01, b11, pcbWallShader(0.9))
-      drawQuad(t01, t00, b00, b01, pcbWallShader(0.62))
 
-      drawQuad(t00, t10, t11, t01, (u, v) => {
-        const tx = Math.min(TEX_SIZE - 1, (u * TEX_SIZE) | 0)
-        const ty = Math.min(TEX_SIZE - 1, (v * TEX_SIZE) | 0)
-        const base = pcbTex[ty * TEX_SIZE + tx] * (0.8 + specBoost * 0.28)
-        return { l: Math.min(1, base), burn: 0.0, mask: 1 }
-      })
-
-      // 3. Stepped Metallic IHS Flange Shoulder (z = -0.01 to +0.05)
-      const flR = 0.83
-      const fb00 = project(-flR, -flR, -0.01)
-      const fb10 = project(flR, -flR, -0.01)
-      const fb11 = project(flR, flR, -0.01)
-      const fb01 = project(-flR, flR, -0.01)
-
-      const ft00 = project(-flR, -flR, 0.05)
-      const ft10 = project(flR, -flR, 0.05)
-      const ft11 = project(flR, flR, 0.05)
-      const ft01 = project(-flR, flR, 0.05)
-
-      const flangeWallShader = (lt: number) => (u: number) =>
-        u < 0.06 || u > 0.94 ? null : { l: 0.45 * lt, burn: 0.0, mask: 2 }
-      drawQuad(ft00, ft10, fb10, fb00, flangeWallShader(0.72))
-      drawQuad(ft10, ft11, fb11, fb10, flangeWallShader(0.95))
-      drawQuad(ft11, ft01, fb01, fb11, flangeWallShader(0.85))
-      drawQuad(ft01, ft00, fb00, fb01, flangeWallShader(0.6))
-
-      drawQuad(ft00, ft10, ft11, ft01, (u, v) => {
-        const tx = Math.min(TEX_SIZE - 1, (u * TEX_SIZE) | 0)
-        const ty = Math.min(TEX_SIZE - 1, (v * TEX_SIZE) | 0)
-        if (flangeMaskTex[ty * TEX_SIZE + tx] === 0) return null
-        const maxD = Math.max(Math.abs(u - 0.5), Math.abs(v - 0.5)) * 2
-        return { l: maxD < 0.92 ? 0.34 : 0.84, burn: 0.0, mask: 2 }
-      })
-
-      // 4. Raised Smooth Metallic IHS Plate (z = +0.05 to +0.16)
-      const ihsR = 0.74
-      const ib00 = project(-ihsR, -ihsR, 0.05)
-      const ib10 = project(ihsR, -ihsR, 0.05)
-      const ib11 = project(ihsR, ihsR, 0.05)
-      const ib01 = project(-ihsR, ihsR, 0.05)
-
-      const it00 = project(-ihsR * 0.95, -ihsR * 0.95, 0.16)
-      const it10 = project(ihsR * 0.95, -ihsR * 0.95, 0.16)
-      const it11 = project(ihsR * 0.95, ihsR * 0.95, 0.16)
-      const it01 = project(-ihsR * 0.95, ihsR * 0.95, 0.16)
-
-      const bevelShader = (light: number) => (u: number, v: number) => {
-        if (u < 0.06 || u > 0.94) return null
-        const rimHighlight = v < 0.3 ? 0.95 : 0.52 * light + specBoost * 0.2
-        return { l: Math.min(0.98, rimHighlight), burn: 0.35, mask: 2 }
+      const rearShader = (u: number, v: number) => {
+        const tx = Math.min(TEX_W - 1, ((1 - u) * TEX_W) | 0)
+        const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
+        const idx = ty * TEX_W + tx
+        return { l: frontTex[idx] * 0.85, burn: frontBurnTex[idx], mask: v < 0.45 ? 2 : 1 }
       }
-      drawQuad(it00, it10, ib10, ib00, bevelShader(0.78))
-      drawQuad(it10, it11, ib11, ib10, bevelShader(1.05))
-      drawQuad(it11, it01, ib01, ib11, bevelShader(0.94))
-      drawQuad(it01, it00, ib00, ib01, bevelShader(0.64))
 
-      drawQuad(it00, it10, it11, it01, (u, v) => {
-        const tx = Math.min(TEX_SIZE - 1, (u * TEX_SIZE) | 0)
-        const ty = Math.min(TEX_SIZE - 1, (v * TEX_SIZE) | 0)
-        const tIdx = ty * TEX_SIZE + tx
-        if (lidMaskTex[tIdx] === 0) return null
+      const sideShaderR = (u: number, v: number) => {
+        const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
+        const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
+        const idx = ty * TEX_W + tx
+        return { l: sideTex[idx], burn: sideBurnTex[idx], mask: v < 0.35 ? 2 : 1 }
+      }
 
-        const sheen = Math.max(
-          0,
-          1 - Math.hypot(u - (0.42 - sinY * 0.28), v - (0.48 - sinP * 0.28)) * 1.15
-        )
-        const base = lidTex[tIdx] * (0.82 + specBoost * 0.25) + sheen * 0.14
-        const dc = Math.hypot(u - 0.54, v - 0.44)
-        const upperBias = Math.max(0, Math.min(1, (0.68 - v + (u - 0.35) * 0.55) * 1.45))
-        const coreBurn = dc < 0.32 ? 1.0 : dc < 0.56 ? 0.9 * upperBias : 0.35 * upperBias
+      const sideShaderL = (u: number, v: number) => {
+        const tx = Math.min(TEX_W - 1, ((1 - u) * TEX_W) | 0)
+        const ty = Math.min(TEX_H - 1, (v * TEX_H) | 0)
+        const idx = ty * TEX_W + tx
+        return { l: sideTex[idx] * 0.82, burn: sideBurnTex[idx], mask: v < 0.35 ? 2 : 1 }
+      }
+
+      const topShader = (u: number, v: number) => {
+        const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
+        const ty = Math.min(TEX_W - 1, (v * TEX_W) | 0)
+        const dc = Math.hypot(u - 0.5, v - 0.5)
         return {
-          l: Math.max(0.08, Math.min(0.99, base)),
-          burn: coreBurn,
-          mask: dc < 0.34 ? 3 : 2,
+          l: topTex[ty * TEX_W + tx],
+          burn: dc < 0.62 ? 1.0 : 0.75,
+          mask: 3,
         }
-      })
+      }
 
-      // Build compact list of active fire-emitting CPU pixels for O(N_emitter) seeding
+      drawQuad(ftl, ftr, fbr, fbl, frontShader)
+      drawQuad(btr, btl, bbl, bbr, rearShader)
+      drawQuad(ftr, btr, bbr, fbr, sideShaderR)
+      drawQuad(btl, ftl, fbl, bbl, sideShaderL)
+      drawQuad(btl, btr, ftr, ftl, topShader)
+
+      const roofCenter = project(0, 0, H * 0.72)
+      plumeCx = roofCenter.sx
+      plumeCy = roofCenter.sy
+      plumeSpanX = scaleR * 1.15
+
       emitterCount = 0
       for (let y = 1; y < h - 1; y++) {
         const row = y * w
@@ -503,18 +579,18 @@ export function BurningCpu() {
         const bz = burnZone[i]
         const x = i % w
         const y = (i / w) | 0
-        const m = cpuMask[i]
-        const isIhsEdge =
+        const m = rackMask[i]
+        const isUpperEdge =
           m >= 2 &&
-          (cpuMask[i - 1] !== m ||
-            cpuMask[i + 1] !== m ||
-            cpuMask[i - w] !== m ||
-            cpuMask[i + w] !== m)
+          (rackMask[i - 1] !== m ||
+            rackMask[i + 1] !== m ||
+            rackMask[i - w] !== m ||
+            rackMask[i + w] !== m)
 
         const n1 = fastFbm(x * 0.045 + t * 0.75, y * 0.045 - t * 1.6)
         const n2 = fastNoise(x * 0.11 - t * 1.2, y * 0.11 - t * 2.3)
 
-        if (isIhsEdge && bz > 0.25) {
+        if (isUpperEdge && bz > 0.25) {
           const v = (220 + n1 * 50 + rand() * 28) * bz * totalInt
           if (v > heat[i]) heat[i] = v > 255 ? 255 : v
         } else if (bz > 0.35) {
@@ -530,18 +606,18 @@ export function BurningCpu() {
     const stepHeat = () => {
       tick++
       const t = tick * 0.036
-      const decayScale = 1 / Math.max(0.55, Math.min(1.75, 1.2 + surgeHeat * 0.65))
+      const decayScale = 1 / Math.max(0.55, Math.min(1.75, 1.22 + surgeHeat * 0.65))
 
       for (let y = 0; y < h - 3; y++) {
         const row = y * w
-        const heightFrac = Math.max(0, (cpuCenterY - y) / Math.max(1, cpuCenterY))
-        const chimneyWave = Math.sin(heightFrac * 4.8 - t * 2.1) * (5.5 * heightFrac)
-        const maxSpanInv = 1 / Math.max(1, cpuSpanX * (1.06 - heightFrac * 0.15))
+        const heightFrac = Math.max(0, (plumeCy - y) / Math.max(1, plumeCy))
+        const chimneyWave = Math.sin(heightFrac * 4.8 - t * 2.1) * (5.0 * heightFrac)
+        const maxSpanInv = 1 / Math.max(1, plumeSpanX * (1.08 - heightFrac * 0.12))
 
         for (let x = 2; x < w - 2; x++) {
           const i = row + x
-          const swirl = (fastFbm(x * 0.032 + t * 0.65, y * 0.028 + t * 1.8) - 0.5) * 4.8
-          const centerPull = (x - (cpuCenterX + chimneyWave)) * 0.015 * heightFrac
+          const swirl = (fastFbm(x * 0.032 + t * 0.65, y * 0.028 + t * 1.8) - 0.5) * 4.6
+          const centerPull = (x - (plumeCx + chimneyWave)) * 0.016 * heightFrac
           const jitter = (rand() - 0.5) * 1.8
 
           let srcX = Math.round(x + swirl + centerPull + jitter - mouseWindX * 1.8)
@@ -559,8 +635,8 @@ export function BurningCpu() {
             heat[srcY * w + (srcX + 1)] * 0.16
 
           const coolNoise = fastNoise(x * 0.055 - t * 0.75, y * 0.048 + t * 2.0)
-          const edgeDx = Math.abs(x - (cpuCenterX + chimneyWave)) * maxSpanInv
-          const sideCooling = edgeDx > 0.82 ? (edgeDx - 0.82) * 4.2 : 0
+          const edgeDx = Math.abs(x - (plumeCx + chimneyWave)) * maxSpanInv
+          const sideCooling = edgeDx > 0.85 ? (edgeDx - 0.85) * 4.0 : 0
           const baseDecay =
             (0.38 + coolNoise * 1.05 + sideCooling + (rand() < 0.22 ? 0.55 : 0.08)) * decayScale
 
@@ -588,21 +664,25 @@ export function BurningCpu() {
       if (!pixels) return
       const dst = pixels.data
       const t = tick * 0.042
-      const invBackSpan = 1 / Math.max(1, cpuRadius * 0.58)
+      const invTopSpan = 1 / Math.max(1, scaleRadius * 0.45)
 
       for (let y = 0; y < h; y++) {
         const row = y * w
-        const backHeightFactor = Math.max(0, Math.min(1, (cpuCenterY - y) * invBackSpan))
+        const topHeightFactor = Math.max(
+          0,
+          Math.min(1, (plumeCy + scaleRadius * 0.18 - y) * invTopSpan)
+        )
 
         for (let x = 0; x < w; x++) {
           const i = row + x
           const p = i * 4
           const rawCell = heat[i] / 255
           const spark = ember[i] / 255
-          const isCpu = cpuMask[i] > 0
+          const maskVal = rackMask[i]
+          const isRack = maskVal > 0
           const base = luma[i]
 
-          if (!isCpu && rawCell < 0.035 && spark < 0.08) {
+          if (!isRack && rawCell < 0.035 && spark < 0.08) {
             dst[p] = 5
             dst[p + 1] = 5
             dst[p + 2] = 5
@@ -626,24 +706,25 @@ export function BurningCpu() {
           )
 
           let g = 0
-          if (isCpu) {
+          if (isRack) {
             const bz = burnZone[i]
-            const melt = Math.max(0, Math.min(1, (rawCell - 0.22) / 0.78)) * bz * bz
-            let cpuG = base
+            const melt = Math.max(0, Math.min(1, (rawCell - 0.22) / 0.78)) * Math.pow(bz, 1.3)
+            let rackG = base
 
-            if (melt > 0.15 && base < 0.92) {
+            if (melt > 0.15 && base < 0.9) {
               const charMask = Math.max(0, (smokeField - 0.42) * 2.5)
               if (charMask > 0.48) {
-                cpuG = base * 0.25 + (1 - Math.min(1, charMask)) * 0.22
+                rackG = base * 0.25 + (1 - Math.min(1, charMask)) * 0.22
               } else {
                 const ridge = Math.max(0, Math.min(1, 1 - charMask * 1.35))
-                cpuG = base * (1 - melt * 0.65) + melt * ridge * 1.05
+                rackG = base * (1 - melt * 0.65) + melt * ridge * 1.05
               }
             }
 
-            const backBlend = backHeightFactor * Math.min(1, rawCell * 1.5)
-            const blended = cpuG * (1 - backBlend * 0.88) + plumeG * (backBlend * 0.88)
-            g = Math.max(cpuG * (1 - backBlend * 0.45), blended)
+            const maskWeight = maskVal >= 2 ? 1.0 : 0.25
+            const topBlend = topHeightFactor * Math.min(1, rawCell * 1.45) * maskWeight
+            const blended = rackG * (1 - topBlend * 0.85) + plumeG * (topBlend * 0.85)
+            g = Math.max(rackG * (1 - topBlend * 0.4), blended)
           } else {
             g = plumeG
           }
@@ -663,23 +744,23 @@ export function BurningCpu() {
       ctx.putImageData(pixels, 0, 0)
     }
 
-    // Instant <5ms analytical plume ignition on mount (eliminates the 5-second startup delay!)
+    // Instant <5ms analytical plume ignition on mount
     const igniteInstant = () => {
-      rasterize3DCpu()
+      rasterize3DRack()
       heat.fill(0)
-      const maxY = Math.min(h - 4, Math.floor(cpuCenterY + cpuRadius * 0.35))
+      const maxY = Math.min(h - 4, Math.floor(plumeCy + scaleRadius * 0.45))
       for (let y = 0; y < maxY; y++) {
         const row = y * w
-        const heightFrac = Math.max(0, (cpuCenterY - y) / Math.max(1, cpuCenterY))
+        const heightFrac = Math.max(0, (plumeCy - y) / Math.max(1, plumeCy))
         const wave = Math.sin(heightFrac * 4.5) * (5.0 * heightFrac)
-        const halfSpan = cpuSpanX * (0.76 - heightFrac * 0.24)
-        const minX = Math.max(2, Math.floor(cpuCenterX + wave - halfSpan))
-        const maxX = Math.min(w - 3, Math.ceil(cpuCenterX + wave + halfSpan))
+        const halfSpan = plumeSpanX * (0.78 - heightFrac * 0.22)
+        const minX = Math.max(2, Math.floor(plumeCx + wave - halfSpan))
+        const maxX = Math.min(w - 3, Math.ceil(plumeCx + wave + halfSpan))
         for (let x = minX; x <= maxX; x++) {
-          const dx = Math.abs(x - (cpuCenterX + wave)) / Math.max(1, halfSpan)
+          const dx = Math.abs(x - (plumeCx + wave)) / Math.max(1, halfSpan)
           const n = fastFbm(x * 0.04, y * 0.035)
-          const envelope = Math.max(0, 1 - dx * dx) * (1 - heightFrac * 0.55)
-          const val = (envelope * 210 + (n - 0.35) * 120)
+          const envelope = Math.max(0, 1 - dx * dx) * (1 - heightFrac * 0.52)
+          const val = envelope * 215 + (n - 0.35) * 120
           if (val > 10) heat[row + x] = Math.min(255, val)
         }
       }
@@ -691,16 +772,16 @@ export function BurningCpu() {
     const frame = () => {
       if (!running) return
       if (!isDragging) {
-        const idleBreathP = Math.sin(tick * 0.018) * 0.022
-        const idleBreathY = Math.cos(tick * 0.014) * 0.032
+        const idleBreathP = Math.sin(tick * 0.018) * 0.018
+        const idleBreathY = Math.cos(tick * 0.014) * 0.035
         velYaw *= 0.88
         velPitch *= 0.88
         yaw += velYaw + (targetYaw + idleBreathY - yaw) * 0.1
         pitch += velPitch + (targetPitch + idleBreathP - pitch) * 0.1
       }
-      pitch = Math.max(0.42, Math.min(1.2, pitch))
+      pitch = Math.max(0.08, Math.min(0.68, pitch))
 
-      rasterize3DCpu()
+      rasterize3DRack()
       stepHeat()
       stepHeat()
       paint()
@@ -740,23 +821,23 @@ export function BurningCpu() {
         lastMouseY = clientY
 
         velYaw = dx * 0.012
-        velPitch = dy * 0.009
+        velPitch = dy * 0.008
         yaw += velYaw
-        pitch = Math.max(0.42, Math.min(1.2, pitch + velPitch))
+        pitch = Math.max(0.08, Math.min(0.68, pitch + velPitch))
         targetYaw = yaw
         targetPitch = pitch
         mouseWindX = Math.max(-2.8, Math.min(2.8, dx * 0.15))
       } else if (isPointNearCanvas(clientX, clientY)) {
         const nx = ((clientX - rect.left) / Math.max(1, rect.width) - 0.5) * 2
-        const ny = ((clientY - rect.top) / Math.max(1, rect.height) - 0.65) * 2
+        const ny = ((clientY - rect.top) / Math.max(1, rect.height) - 0.6) * 2
         const dx = clientX - lastMouseX
         lastMouseX = clientX
         lastMouseY = clientY
         if (Math.abs(dx) < 80) {
           mouseWindX = Math.max(-2.0, Math.min(2.0, mouseWindX * 0.72 + dx * 0.065))
         }
-        targetYaw = DEFAULT_YAW + nx * 0.32
-        targetPitch = Math.max(0.48, Math.min(1.12, DEFAULT_PITCH + ny * 0.2))
+        targetYaw = DEFAULT_YAW + nx * 0.35
+        targetPitch = Math.max(0.12, Math.min(0.58, DEFAULT_PITCH + ny * 0.16))
       }
     }
 
@@ -822,4 +903,5 @@ export function BurningCpu() {
   )
 }
 
-export default BurningCpu
+export const BurningCpu = BurningDataCenterMachine
+export default BurningDataCenterMachine
