@@ -876,27 +876,6 @@ export function ReviewPage() {
                         🧪 Tests
                       </button>
                     ) : null}
-                    <button
-                      type="button"
-                      className="quick-nav-expand"
-                      onClick={() => {
-                        const next = splitPercent <= 24 ? 34 : 20
-                        setSplitPercent(next)
-                        localStorage.setItem(
-                          'redteamer_split_ratio',
-                          String(next),
-                        )
-                      }}
-                      title={
-                        splitPercent <= 24
-                          ? 'Restore 66% width'
-                          : 'Maximize output width to 80%'
-                      }
-                    >
-                      {splitPercent <= 24
-                        ? '⤡ Restore (66%)'
-                        : '⤢ Maximize Output (80%)'}
-                    </button>
                   </div>
 
                   {result.note ? (

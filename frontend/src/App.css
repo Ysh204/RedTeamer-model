@@ -161,13 +161,14 @@
 
 .hero-visual {
   position: absolute;
-  inset: 0 0 0 46%;
+  inset: 0 0 0 52%;
   z-index: 1;
   overflow: hidden;
   pointer-events: auto;
   display: flex;
   align-items: center;
-  justify-content: center;
+  justify-content: flex-end;
+  padding-right: clamp(16px, 3.5vw, 64px);
   mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 100%);
   -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 18%, #000 100%);
 }
@@ -245,9 +246,9 @@
 .hero-copy {
   position: absolute;
   z-index: 3;
-  left: clamp(24px, 3.2vw, 48px);
-  bottom: clamp(24px, 3.2vw, 48px);
-  max-width: min(640px, 45%);
+  left: clamp(28px, 3.8vw, 56px);
+  bottom: clamp(28px, 3.8vw, 56px);
+  max-width: min(820px, 52%);
   pointer-events: auto;
   user-select: text;
   -webkit-user-select: text;
@@ -257,11 +258,11 @@
 .eyebrow {
   display: flex;
   align-items: center;
-  gap: 10px;
-  margin: 0 0 14px;
-  font-size: 13px;
-  letter-spacing: 0.18em;
-  color: rgba(255, 255, 255, 0.85);
+  gap: 12px;
+  margin: 0 0 16px;
+  font-size: 14px;
+  letter-spacing: 0.20em;
+  color: rgba(255, 255, 255, 0.88);
   font-weight: 500;
 }
 
@@ -271,8 +272,8 @@
 }
 
 .diamonds i {
-  width: 8.5px;
-  height: 8.5px;
+  width: 9px;
+  height: 9px;
   background: #fff;
   transform: rotate(45deg);
 }
@@ -281,9 +282,9 @@ h1 {
   margin: 0;
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(44px, 5.4vw, 74px);
-  line-height: 0.94;
-  letter-spacing: -0.028em;
+  font-size: clamp(54px, 6.8vw, 92px);
+  line-height: 0.92;
+  letter-spacing: -0.03em;
   color: #f6f6f6;
 }
 
@@ -1512,25 +1513,6 @@ h1 small {
 .quick-nav-pill:hover {
   background: rgba(255, 255, 255, 0.15);
   border-color: rgba(255, 255, 255, 0.35);
-  color: #fff;
-}
-
-.quick-nav-expand {
-  margin-left: auto;
-  background: rgba(63, 169, 120, 0.14);
-  border: 1px solid rgba(63, 169, 120, 0.35);
-  color: #4ade80;
-  border-radius: 6px;
-  padding: 3px 9px;
-  font-family: var(--mono);
-  font-size: 10.5px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: all 0.15s ease;
-}
-
-.quick-nav-expand:hover {
-  background: rgba(63, 169, 120, 0.25);
   color: #fff;
 }
 
