@@ -406,8 +406,8 @@ function DiffViewer({ patch }: { patch: string }) {
 }
 
 export function ReviewPage() {
-  const [code, setCode] = useState<string>(EXAMPLES[0].code)
-  const [activeExample, setActiveExample] = useState<string>(EXAMPLES[0].id)
+  const [code, setCode] = useState<string>('')
+  const [activeExample, setActiveExample] = useState<string>('')
   const [busy, setBusy] = useState(false)
   const [steps, setSteps] = useState<Record<StepKey, StepState>>({
     attacker: 'pending',
@@ -424,7 +424,7 @@ export function ReviewPage() {
 
   const chars = code.length
   const lines = useMemo(() => code.split('\n'), [code])
-  const lineCount = lines.length
+  const lineCount = code ? lines.length : 1
   const over = chars > MAX
   const finding = result?.attacker?.findings?.[0]
   const checks = result?.patcher?.checks ?? {}
@@ -482,7 +482,7 @@ export function ReviewPage() {
   }
 
   async function review() {
-    if (over || busy) return
+    if (over || busy || !code.trim()) return
     setBusy(true)
     setResult(null)
     setPatchAppliedNotice(false)
@@ -545,7 +545,7 @@ export function ReviewPage() {
             type="button"
             className={`review-btn ${busy ? 'is-busy' : ''}`}
             onClick={review}
-            disabled={busy || over}
+            disabled={busy || over || !code.trim()}
           >
             {busy ? (
               <span className="btn-inner">
@@ -586,12 +586,13 @@ export function ReviewPage() {
 
               <div className="meta-actions">
                 <span className="meta-stat">
-                  {lineCount} {lineCount === 1 ? 'line' : 'lines'}
+                  {code ? `${lineCount} ${lineCount === 1 ? 'line' : 'lines'}` : '0 lines'}
                 </span>
                 <button
                   type="button"
                   className="meta-action-btn"
                   title="Copy code to clipboard"
+                  disabled={!code}
                   onClick={() => copyToClipboard(code, 'editor_code')}
                 >
                   {copiedAction === 'editor_code' ? (
@@ -615,14 +616,19 @@ export function ReviewPage() {
                 <button
                   type="button"
                   className="meta-action-btn"
-                  title="Reset snippet"
+                  title={activeExample ? 'Reset to fixture' : 'Clear buffer'}
+                  disabled={!code}
                   onClick={() => {
-                    const found = EXAMPLES.find((ex) => ex.id === activeExample)
-                    setCode(found ? found.code : '')
+                    if (activeExample) {
+                      const found = EXAMPLES.find((ex) => ex.id === activeExample)
+                      setCode(found ? found.code : '')
+                    } else {
+                      setCode('')
+                    }
                     setResult(null)
                   }}
                 >
-                  Reset
+                  {activeExample ? 'Reset' : 'Clear'}
                 </button>
                 <span className="shortcut-hint" title="Press Ctrl+Enter to review">
                   Ctrl+↵
@@ -659,7 +665,7 @@ export function ReviewPage() {
                   }
                 }}
                 aria-label="Python snippet"
-                placeholder="# Paste a short Python function or pick a test fixture above..."
+                placeholder="# Paste a Python function here or click one of the test fixtures above..."
               />
             </div>
           </div>
