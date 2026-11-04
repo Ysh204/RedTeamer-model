@@ -587,41 +587,6 @@ export function ReviewPage() {
           <span className={`lab-count ${over ? 'is-over' : ''}`}>
             {chars.toLocaleString()} / {MAX.toLocaleString()}
           </span>
-          <div className="split-presets" title="Pane Width Presets">
-            <button
-              type="button"
-              className={`preset-btn ${splitPercent <= 24 ? 'is-active' : ''}`}
-              onClick={() => {
-                setSplitPercent(20)
-                localStorage.setItem('redteamer_split_ratio', '20')
-              }}
-              title="Max Output (20% Code / 80% Output)"
-            >
-              80% Output
-            </button>
-            <button
-              type="button"
-              className={`preset-btn ${splitPercent > 24 && splitPercent < 44 ? 'is-active' : ''}`}
-              onClick={() => {
-                setSplitPercent(34)
-                localStorage.setItem('redteamer_split_ratio', '34')
-              }}
-              title="Wide Output (34% Code / 66% Output)"
-            >
-              66% Output
-            </button>
-            <button
-              type="button"
-              className={`preset-btn ${splitPercent >= 44 ? 'is-active' : ''}`}
-              onClick={() => {
-                setSplitPercent(50)
-                localStorage.setItem('redteamer_split_ratio', '50')
-              }}
-              title="Balanced (50% Code / 50% Output)"
-            >
-              50 / 50
-            </button>
-          </div>
           <button
             type="button"
             className={`review-btn ${busy ? 'is-busy' : ''}`}

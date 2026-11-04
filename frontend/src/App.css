@@ -161,7 +161,7 @@
 
 .hero-visual {
   position: absolute;
-  inset: 0 0 0 42%;
+  inset: 0 0 0 46%;
   z-index: 1;
   overflow: hidden;
   pointer-events: auto;
@@ -245,9 +245,9 @@
 .hero-copy {
   position: absolute;
   z-index: 3;
-  left: clamp(28px, 4vw, 56px);
-  bottom: clamp(28px, 4.2vw, 56px);
-  max-width: min(1280px, 88%);
+  left: clamp(24px, 3.2vw, 48px);
+  bottom: clamp(24px, 3.2vw, 48px);
+  max-width: min(640px, 45%);
   pointer-events: auto;
   user-select: text;
   -webkit-user-select: text;
@@ -257,22 +257,22 @@
 .eyebrow {
   display: flex;
   align-items: center;
-  gap: 12px;
-  margin: 0 0 18px;
-  font-size: 15px;
-  letter-spacing: 0.22em;
-  color: rgba(255, 255, 255, 0.92);
+  gap: 10px;
+  margin: 0 0 14px;
+  font-size: 13px;
+  letter-spacing: 0.18em;
+  color: rgba(255, 255, 255, 0.85);
   font-weight: 500;
 }
 
 .diamonds {
   display: inline-flex;
-  gap: 4px;
+  gap: 3px;
 }
 
 .diamonds i {
-  width: 10px;
-  height: 10px;
+  width: 8.5px;
+  height: 8.5px;
   background: #fff;
   transform: rotate(45deg);
 }
@@ -281,9 +281,9 @@ h1 {
   margin: 0;
   font-family: var(--serif);
   font-weight: 400;
-  font-size: clamp(68px, 9.6vw, 142px);
-  line-height: 0.90;
-  letter-spacing: -0.032em;
+  font-size: clamp(44px, 5.4vw, 74px);
+  line-height: 0.94;
+  letter-spacing: -0.028em;
   color: #f6f6f6;
 }
 
@@ -906,41 +906,7 @@ h1 small {
   box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
 }
 
-/* Split Presets in Toolbar */
-.split-presets {
-  display: flex;
-  align-items: center;
-  gap: 4px;
-  margin-left: 2px;
-  padding-left: 8px;
-  border-left: 1px solid rgba(255, 255, 255, 0.12);
-}
 
-.preset-btn {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(255, 255, 255, 0.15);
-  border-radius: 6px;
-  padding: 4px 8px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.65);
-  cursor: pointer;
-  transition: all 0.15s ease;
-  white-space: nowrap;
-}
-
-.preset-btn:hover {
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
-  border-color: rgba(255, 255, 255, 0.35);
-}
-
-.preset-btn.is-active {
-  background: #f4f4f4;
-  color: #111;
-  font-weight: 600;
-  border-color: #fff;
-}
 
 .lab-editor-meta {
   display: flex;
