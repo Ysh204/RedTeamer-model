@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import React, { useEffect, useRef } from 'react'
 
 const BAYER8 = [
   [0, 32, 8, 40, 2, 34, 10, 42],
@@ -116,8 +116,8 @@ export function BurningDataCenterMachine() {
     let emitterCount = 0
     let pixels: ImageData | null = null
 
-    // Three-quarter upright perspective for the 3-Rack Data Center Server Cluster
-    const DEFAULT_PITCH = 0.28
+    // Three-quarter downward perspective for the packed 3-Rack Data Center Cluster
+    const DEFAULT_PITCH = 0.24
     const DEFAULT_YAW = -0.56
     let pitch = DEFAULT_PITCH
     let yaw = DEFAULT_YAW
@@ -141,7 +141,7 @@ export function BurningDataCenterMachine() {
     // Pre-generate high-detail 3D Data Center Server Rack Textures (128x224):
     // 1. Front Door: brushed dark-steel frame, swing-handle latch with lock cylinder,
     //    upper EDGERACK header window, silver LCD telemetry touch display, and tall glass door
-    //    showing internal 19" mounting rails with cage-nut holes & 1U/2U server blades.
+    //    densely packed from top to bottom with 1U/2U server blades, drive bays, LEDs, & bottom UPS units.
     // 2. Side Panel: split upper & lower removable panels with horizontal divider bar,
     //    4 recessed slam-latches, upper dark rectangular exhaust window with bright bezel, and diagonal metallic sheen.
     // 3. Top Roof Panel: dual exhaust fan grilles & cable entry slots.
@@ -162,7 +162,7 @@ export function BurningDataCenterMachine() {
         let frame = 0.28 + (1 - u) * 0.12 + (1 - v) * 0.08
         if (u < 0.032 || v < 0.018) {
           frame = 0.92
-        } else if (u > 0.962) {
+        } else if (u > 0.962 || v > 0.982) {
           frame = 0.78
         } else if ((u > 0.048 && u < 0.068) || (u > 0.93 && u < 0.95)) {
           frame = 0.12
@@ -219,35 +219,42 @@ export function BurningDataCenterMachine() {
             burn = 0.92
           }
         }
-        // C) Tall Lower Tempered-Glass Server Bay Door (v in 0.36..0.92)
-        else if (inWindowX && v >= 0.36 && v <= 0.92) {
-          if (u < 0.19 || u > 0.81 || v < 0.37 || v > 0.91) {
+        // C) Tall Lower Tempered-Glass Server Bay Door — densely packed with 9 stacked server blades & UPS units right to the bottom
+        else if (inWindowX && v >= 0.36 && v <= 0.93) {
+          if (u < 0.19 || u > 0.81 || v < 0.37 || v > 0.92) {
             val = 0.84
           } else {
-            if ((u >= 0.198 && u <= 0.25) || (u >= 0.75 && u <= 0.802)) {
+            if ((u >= 0.198 && u <= 0.255) || (u >= 0.745 && u <= 0.802)) {
               const railHole =
-                ty % 4 === 0 && ((u >= 0.212 && u <= 0.236) || (u >= 0.764 && u <= 0.788))
-              val = railHole ? 0.08 : 0.68
+                ty % 3 === 0 && ((u >= 0.212 && u <= 0.238) || (u >= 0.762 && u <= 0.788))
+              val = railHole ? 0.08 : 0.72
             } else {
-              const depthGrad =
-                0.88 - ((u - 0.25) / 0.5) * 0.5 + Math.sin(v * 18.0) * 0.06
-              val = Math.max(0.15, Math.min(0.95, depthGrad))
+              const bayV = (v - 0.37) / 0.55
+              const slot = (bayV * 9.0) % 1.0
+              const unitIdx = (bayV * 9.0) | 0
 
-              if (
-                Math.abs(v - 0.42) < 0.018 ||
-                Math.abs(v - 0.54) < 0.022 ||
-                Math.abs(v - 0.66) < 0.018 ||
-                Math.abs(v - 0.79) < 0.016
-              ) {
-                const isLed = tx % 5 === 0 && ty % 2 === 0
-                val = isLed ? 0.96 : 0.14
-              } else if (
-                Math.abs(v - 0.445) < 0.006 ||
-                Math.abs(v - 0.568) < 0.006 ||
-                Math.abs(v - 0.682) < 0.006
-              ) {
-                val = 0.96
+              if (slot < 0.16) {
+                val = 0.92 - (u - 0.25) * 0.25
+              } else if (slot < 0.76) {
+                const isDriveBay = tx % 6 < 4
+                const isLed = tx % 6 === 0 && ty % 2 === 0
+                if (isLed) {
+                  val = 0.96
+                } else if (isDriveBay) {
+                  val =
+                    0.2 +
+                    (0.75 - u) * 0.18 +
+                    (unitIdx % 2 === 0 && ty % 2 === 0 ? 0.12 : 0.0)
+                } else {
+                  val = 0.42
+                }
+              } else {
+                val = 0.08
               }
+
+              const glassSheen =
+                Math.max(0, 1 - Math.abs(u - 0.32 - (v - 0.65) * 0.45) * 3.2) * 0.26
+              val = Math.min(0.96, val + glassSheen)
             }
 
             if (v < 0.64) {
@@ -256,8 +263,9 @@ export function BurningDataCenterMachine() {
           }
         }
 
-        if (v >= 0.945 && v <= 0.972 && u >= 0.3 && u <= 0.68) {
-          val = tx % 3 !== 0 ? 0.68 : 0.22
+        // Bottom heavy base kickplate / serial badge
+        if (v >= 0.945 && v <= 0.982 && u >= 0.24 && u <= 0.76) {
+          val = tx % 3 !== 0 && Math.abs(v - 0.963) < 0.008 ? 0.72 : 0.18
         }
 
         if (v < 0.36 && u > 0.12 && u < 0.88) {
@@ -277,16 +285,16 @@ export function BurningDataCenterMachine() {
         const idx = ty * TEX_W + tx
 
         const sheen =
-          Math.exp(-((u - 0.62) * (u - 0.62) * 2.8 + (v - 0.42) * (v - 0.42) * 3.2)) * 0.48
-        let val = 0.32 + sheen
+          Math.exp(-((u - 0.58) * (u - 0.58) * 2.6 + (v - 0.48) * (v - 0.48) * 2.8)) * 0.48
+        let val = 0.34 + sheen
 
-        if (u < 0.03 || u > 0.96 || v < 0.018 || v > 0.975) {
-          val = u < 0.022 || v < 0.012 ? 0.82 : 0.14
+        if (u < 0.035 || u > 0.96 || v < 0.018 || v > 0.98) {
+          val = u < 0.024 || v < 0.012 || v > 0.985 ? 0.84 : 0.14
         } else if (v >= 0.475 && v <= 0.512) {
           if (Math.abs(v - 0.475) < 0.006 || Math.abs(v - 0.512) < 0.006) {
             val = 0.12
           } else {
-            val = 0.46 + sheen * 0.4
+            val = 0.48 + sheen * 0.4
           }
         }
 
@@ -374,7 +382,7 @@ export function BurningDataCenterMachine() {
       return true
     }
 
-    // Rasterize all 3 Data Center Server Rack Cabinets in 3D space
+    // Rasterize all 3 tightly-packed Data Center Server Rack Cabinets with solid base plinths
     const rasterize3DRackCluster = () => {
       if (
         Math.abs(pitch - lastRasterPitch) < 0.0008 &&
@@ -392,8 +400,8 @@ export function BurningDataCenterMachine() {
 
       const aspect = w / Math.max(1, h)
       const screenCx = aspect > 1.38 ? w * 0.64 : w * 0.52
-      const screenCy = h * 0.7
-      const scaleR = Math.min(w * 0.21, h * 0.205)
+      const screenCy = h * 0.68
+      const scaleR = Math.min(w * 0.215, h * 0.21)
       scaleRadius = scaleR
 
       const cosY = Math.cos(yaw)
@@ -401,11 +409,14 @@ export function BurningDataCenterMachine() {
       const cosP = Math.cos(pitch)
       const sinP = Math.sin(pitch)
 
+      // True downward-looking camera projection:
+      // Foreground points (ry < 0) project lower on screen (-ry * sinP) and have larger camera depth (+lz * sinP - ry * cosP)
+      // so the rear wall never pokes out below the front door!
       const project = (lx: number, ly: number, lz: number) => {
         const rx = lx * cosY - ly * sinY
         const ry = lx * sinY + ly * cosY
-        const syLocal = -lz * cosP + ry * sinP
-        const szDepth = -lz * sinP - ry * cosP
+        const syLocal = -lz * cosP - ry * sinP
+        const szDepth = lz * sinP - ry * cosP
         const persp = 1 / (1 - szDepth * 0.04)
         return {
           sx: screenCx + rx * scaleR * persp,
@@ -468,16 +479,16 @@ export function BurningDataCenterMachine() {
         rasterTri(p00, 0, 0, p11, 1, 1, p01, 0, 1)
       }
 
-      const W = 0.35
+      const W = 0.36
       const D = 0.54
       const H = 1.02
-      const GAP = 0.08
+      const GAP = 0.03
 
-      // 3 Data Center Server Rack Cabinets arranged side-by-side in a 3-rack bank
+      // 3 tightly-packed Data Center Server Rack Cabinets
       const rackConfigs = [
-        { ox: -(2 * W + GAP), oy: 0.06, hScale: 0.96, bMult: 0.9 },
-        { ox: 0.0, oy: -0.04, hScale: 1.03, bMult: 1.02 },
-        { ox: 2 * W + GAP, oy: 0.04, hScale: 0.98, bMult: 0.96 },
+        { ox: -(2 * W + GAP), oy: 0.0, hScale: 0.98, bMult: 0.92 },
+        { ox: 0.0, oy: 0.0, hScale: 1.02, bMult: 1.02 },
+        { ox: 2 * W + GAP, oy: 0.0, hScale: 0.98, bMult: 0.96 },
       ]
 
       for (let r = 0; r < rackConfigs.length; r++) {
@@ -485,28 +496,36 @@ export function BurningDataCenterMachine() {
         const rH = H * hScale
         const baseZ = -H
         const topZ = baseZ + 2.0 * rH
+        const plinthZ = baseZ - 0.09
 
-        // 4 Leveling caster feet per cabinet
-        const footCoords = [
-          [ox - W * 0.82, oy - D * 0.82],
-          [ox + W * 0.82, oy - D * 0.82],
-          [ox - W * 0.82, oy + D * 0.82],
-          [ox + W * 0.82, oy + D * 0.82],
-        ]
-        for (let f = 0; f < footCoords.length; f++) {
-          const fx = footCoords[f][0]
-          const fy = footCoords[f][1]
-          const fw = 0.048
-          const ft0 = project(fx - fw, fy - fw, baseZ)
-          const ft1 = project(fx + fw, fy + fw, baseZ)
-          const fb0 = project(fx - fw, fy - fw, baseZ - 0.07)
-          const fb1 = project(fx + fw, fy + fw, baseZ - 0.07)
-          drawQuad(ft0, ft1, fb1, fb0, (_u, v) => ({
-            l: v > 0.6 ? 0.75 : 0.25,
-            burn: 0.0,
-            mask: 1,
-          }))
-        }
+        // Solid Heavy Base Plinth / Pedestal Skirt sealing the entire underside of each cabinet
+        const pw = W * 0.98
+        const pd = D * 0.98
+        const ptfl = project(ox - pw, oy - pd, baseZ)
+        const ptfr = project(ox + pw, oy - pd, baseZ)
+        const ptbr = project(ox + pw, oy + pd, baseZ)
+        const ptbl = project(ox - pw, oy + pd, baseZ)
+
+        const pbfl = project(ox - pw, oy - pd, plinthZ)
+        const pbfr = project(ox + pw, oy - pd, plinthZ)
+        const pbbr = project(ox + pw, oy + pd, plinthZ)
+        const pbbl = project(ox - pw, oy + pd, plinthZ)
+
+        const plinthShader = (lt: number) => (u: number, v: number) => ({
+          l:
+            (v > 0.72 && (u < 0.14 || u > 0.86)
+              ? 0.82
+              : v < 0.22
+                ? 0.55
+                : 0.18) * lt,
+          burn: 0.0,
+          mask: 1,
+        })
+        drawQuad(ptfl, ptfr, pbfr, pbfl, plinthShader(0.9))
+        drawQuad(ptfr, ptbr, pbbr, pbfr, plinthShader(0.75))
+        drawQuad(ptbr, ptbl, pbbl, pbbr, plinthShader(0.6))
+        drawQuad(ptbl, ptfl, pbfl, pbbl, plinthShader(0.7))
+        drawQuad(pbfl, pbfr, pbbr, pbbl, () => ({ l: 0.16, burn: 0.0, mask: 1 }))
 
         const ftl = project(ox - W, oy - D, topZ)
         const ftr = project(ox + W, oy - D, topZ)
@@ -517,6 +536,9 @@ export function BurningDataCenterMachine() {
         const btr = project(ox + W, oy + D, topZ)
         const bbr = project(ox + W, oy + D, baseZ)
         const bbl = project(ox - W, oy + D, baseZ)
+
+        // Solid bottom floor plate of cabinet
+        drawQuad(fbl, fbr, bbr, bbl, () => ({ l: 0.2, burn: 0.0, mask: 1 }))
 
         const frontShader = (u: number, v: number) => {
           const tx = Math.min(TEX_W - 1, (u * TEX_W) | 0)
@@ -806,7 +828,7 @@ export function BurningDataCenterMachine() {
         yaw += velYaw + (targetYaw + idleBreathY - yaw) * 0.1
         pitch += velPitch + (targetPitch + idleBreathP - pitch) * 0.1
       }
-      pitch = Math.max(0.08, Math.min(0.68, pitch))
+      pitch = Math.max(0.08, Math.min(0.62, pitch))
 
       rasterize3DRackCluster()
       stepHeat()
@@ -850,7 +872,7 @@ export function BurningDataCenterMachine() {
         velYaw = dx * 0.012
         velPitch = dy * 0.008
         yaw += velYaw
-        pitch = Math.max(0.08, Math.min(0.68, pitch + velPitch))
+        pitch = Math.max(0.08, Math.min(0.62, pitch + velPitch))
         targetYaw = yaw
         targetPitch = pitch
         mouseWindX = Math.max(-2.8, Math.min(2.8, dx * 0.15))
@@ -864,7 +886,7 @@ export function BurningDataCenterMachine() {
           mouseWindX = Math.max(-2.0, Math.min(2.0, mouseWindX * 0.72 + dx * 0.065))
         }
         targetYaw = DEFAULT_YAW + nx * 0.35
-        targetPitch = Math.max(0.12, Math.min(0.58, DEFAULT_PITCH + ny * 0.16))
+        targetPitch = Math.max(0.12, Math.min(0.54, DEFAULT_PITCH + ny * 0.15))
       }
     }
 
