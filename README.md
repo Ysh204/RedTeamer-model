@@ -87,15 +87,24 @@ Run these steps from the cloned repository root.
    The cache and credentials are excluded from Git. Do not paste access
    tokens into source files or commit them.
 
-5. Start the app:
+5. Start the backend:
 
-   ```powershell
-   .\.venv\Scripts\python.exe app.py
-   ```
+   - **For Vite Frontend (React 19)**:
+     ```powershell
+     .\.venv\Scripts\python.exe server.py
+     ```
+     Then in another terminal:
+     ```powershell
+     cd frontend
+     npm run dev
+     ```
+     Open `http://localhost:5173`.
 
-Open the local address shown by Gradio, click **Load model**, then paste a
-short Python snippet and click **Review code**. The first model load may take
-time if the base weights are not cached.
+   - **For Gradio Web UI**:
+     ```powershell
+     .\.venv\Scripts\python.exe app.py
+     ```
+     Open the local address shown by Gradio (`http://127.0.0.1:7860`).
 
 To check whether PyTorch can see the GPU:
 
