@@ -29,28 +29,6 @@ export function HandleBox({
   )
 }
 
-export function GlobeIcon() {
-  return (
-    <svg viewBox="0 0 32 32" className="icon-lg" aria-hidden="true">
-      <circle cx="16" cy="16" r="11.2" />
-      <ellipse cx="16" cy="16" rx="5.2" ry="11.2" />
-      <path d="M5 16h22" />
-      <path d="M7.2 10.2h17.6" />
-      <path d="M7.2 21.8h17.6" />
-    </svg>
-  )
-}
-
-export function PencilIcon() {
-  return (
-    <svg viewBox="0 0 32 32" className="icon-lg" aria-hidden="true">
-      <path d="M20.2 7.2l4.6 4.6-12.4 12.4H7.8v-4.6L20.2 7.2z" />
-      <path d="M18.4 9l4.6 4.6" />
-      <path d="M8.4 24.4l3.4-.1" />
-    </svg>
-  )
-}
-
 export function PlaneIcon() {
   return (
     <svg viewBox="0 0 20 20" className="icon-sm" aria-hidden="true">
@@ -71,25 +49,6 @@ export function LogoMark() {
   )
 }
 
-export function ShieldMark() {
-  return (
-    <svg viewBox="0 0 18 18" className="brand-mark" aria-hidden="true">
-      <path d="M9 2.2l6.2 2.2v5.1c0 3.4-2.6 5.6-6.2 6.7C5.4 15.1 2.8 12.9 2.8 9.5V4.4L9 2.2z" />
-    </svg>
-  )
-}
-
-export function NodeMark() {
-  return (
-    <svg viewBox="0 0 18 18" className="brand-mark" aria-hidden="true">
-      <circle cx="9" cy="4.2" r="1.8" />
-      <circle cx="4.2" cy="13.2" r="1.8" />
-      <circle cx="13.8" cy="13.2" r="1.8" />
-      <path d="M8.2 5.6L5.2 11.6M9.8 5.6l3 6" />
-    </svg>
-  )
-}
-
 const LINKS = [
   { to: '/', label: 'Home' },
   { to: '/review', label: 'Review Lab' },
@@ -106,7 +65,6 @@ type ModelState = {
 
 export function Shell({ children, home = false }: { children: ReactNode; home?: boolean }) {
   const [menuOpen, setMenuOpen] = useState(false)
-  const [subscribed, setSubscribed] = useState(false)
   const [model, setModel] = useState<ModelState>({ isLoaded: false, loading: false })
   const location = useLocation()
 
@@ -202,44 +160,14 @@ export function Shell({ children, home = false }: { children: ReactNode; home?: 
         {children}
 
         <footer className="dock">
-          <HandleBox className="dock-btn globe" as={Link} to="/" aria-label="Home">
-            <GlobeIcon />
-          </HandleBox>
-
-          <HandleBox className="dock-btn partners" as={Link} to="/pipeline">
-            <span className="partner">
-              <NodeMark />
-              Attacker
-            </span>
-            <span className="partner">
-              <ShieldMark />
-              Critic
-            </span>
-          </HandleBox>
-
-          <HandleBox
-            className={`dock-btn subscribe ${subscribed ? 'is-on' : ''}`}
-            as="label"
-          >
-            <input
-              type="checkbox"
-              checked={subscribed}
-              onChange={(e) => setSubscribed(e.target.checked)}
-            />
-            <span className="box" aria-hidden="true" />
-            Brief me on new adapters
-          </HandleBox>
-
-          <HandleBox className="dock-btn download" as={Link} to="/review">
-            <span>Review Code</span>
-            <HandleBox className="os-group">
-              <span className="os-label">Lab</span>
-            </HandleBox>
-          </HandleBox>
-
-          <HandleBox className="dock-btn edit" as={Link} to="/about" aria-label="About">
-            <PencilIcon />
-          </HandleBox>
+          <nav className="dock-nav" aria-label="Sections">
+            {LINKS.map((link) => (
+              <NavLink key={link.to} to={link.to} end={link.to === '/'}>
+                {link.label}
+              </NavLink>
+            ))}
+          </nav>
+          <p className="dock-note">Read-only · never writes to disk</p>
         </footer>
       </main>
     </div>
