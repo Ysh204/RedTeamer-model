@@ -1,3 +1,4 @@
+import gc
 import json
 import os
 import re
@@ -85,6 +86,10 @@ def load_model():
         if missing:
             raise RuntimeError("Missing required adapter files: " + ", ".join(missing))
 
+        gc.collect()
+        if torch.cuda.is_available():
+            torch.cuda.empty_cache()
+
         quantization = BitsAndBytesConfig(
             load_in_4bit=True,
             bnb_4bit_quant_type="nf4",
@@ -92,32 +97,41 @@ def load_model():
             bnb_4bit_use_double_quant=True,
         )
         tokenizer = AutoTokenizer.from_pretrained(str(ADAPTER_DIR), use_fast=True)
-        base = AutoModelForCausalLM.from_pretrained(
-            BASE_MODEL,
-            quantization_config=quantization,
-            device_map="auto",
-            dtype=torch.float16,
-            low_cpu_mem_usage=True,
-        )
-        model = PeftModel.from_pretrained(
-            base,
-            str(ADAPTER_DIR),
-            adapter_name="shared_v5",
-            is_trainable=False,
-        )
-        model.load_adapter(
-            str(CRITIC_ADAPTER_DIR),
-            adapter_name="critic_v1",
-            is_trainable=False,
-        )
-        model.load_adapter(
-            str(PATCHER_ADAPTER_DIR),
-            adapter_name="patcher_v31",
-            is_trainable=False,
-        )
-        model.set_adapter("shared_v5", inference_mode=True)
-        model.eval()
-        _tokenizer, _model = tokenizer, model
+        try:
+            base = AutoModelForCausalLM.from_pretrained(
+                BASE_MODEL,
+                quantization_config=quantization,
+                device_map="auto",
+                dtype=torch.float16,
+                torch_dtype=torch.float16,
+                low_cpu_mem_usage=True,
+            )
+            model = PeftModel.from_pretrained(
+                base,
+                str(ADAPTER_DIR),
+                adapter_name="shared_v5",
+                is_trainable=False,
+            )
+            model.load_adapter(
+                str(CRITIC_ADAPTER_DIR),
+                adapter_name="critic_v1",
+                is_trainable=False,
+            )
+            model.load_adapter(
+                str(PATCHER_ADAPTER_DIR),
+                adapter_name="patcher_v31",
+                is_trainable=False,
+            )
+            model.set_adapter("shared_v5", inference_mode=True)
+            model.eval()
+            _tokenizer, _model = tokenizer, model
+        except Exception:
+            _model = None
+            _tokenizer = None
+            gc.collect()
+            if torch.cuda.is_available():
+                torch.cuda.empty_cache()
+            raise
 
 
 def _generate(
