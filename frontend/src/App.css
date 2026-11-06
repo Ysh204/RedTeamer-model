@@ -208,20 +208,53 @@
   width: 176px;
   height: 58px;
   overflow: hidden;
+  position: relative;
   pointer-events: none;
   user-select: none;
+  mask-image: linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%);
+  -webkit-mask-image: linear-gradient(90deg, transparent 0%, #000 10%, #000 90%, transparent 100%);
 }
 
 .topo path {
-  stroke: rgba(255, 255, 255, 0.88);
-  stroke-width: 1.15;
+  stroke: rgba(255, 255, 255, 0.85);
+  stroke-width: 1.1;
   stroke-linecap: round;
   stroke-linejoin: round;
+  vector-effect: non-scaling-stroke;
+}
+
+.topo path.is-outer {
+  stroke: rgba(255, 255, 255, 0.42);
+  stroke-width: 0.85;
+  stroke-dasharray: 6 3;
+  animation: topo-flow 8s linear infinite;
+}
+
+.topo path.is-minor {
+  stroke: rgba(255, 255, 255, 0.58);
+  stroke-width: 0.95;
+}
+
+.topo path.is-major {
+  stroke: rgba(255, 255, 255, 0.92);
+  stroke-width: 1.25;
+}
+
+.topo path.is-peak {
+  stroke: #ffffff;
+  stroke-width: 1.35;
+  animation: topo-pulse 3.6s ease-in-out infinite alternate;
 }
 
 .topo-track {
-  animation: topo-drift 14s linear infinite;
+  animation: topo-drift 12s linear infinite;
   transform-box: fill-box;
+  will-change: transform;
+}
+
+.topo-track--ambient {
+  opacity: 0.22;
+  animation: topo-drift-reverse 20s linear infinite;
 }
 
 .skv {
@@ -498,11 +531,41 @@ h1 small {
 
 @keyframes topo-drift {
   from {
-    transform: translateX(0);
+    transform: translate3d(0, 0, 0);
   }
 
   to {
-    transform: translateX(-50%);
+    transform: translate3d(-50%, 0, 0);
+  }
+}
+
+@keyframes topo-drift-reverse {
+  from {
+    transform: translate3d(-50%, 0, 0);
+  }
+
+  to {
+    transform: translate3d(0, 0, 0);
+  }
+}
+
+@keyframes topo-flow {
+  from {
+    stroke-dashoffset: 36;
+  }
+
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes topo-pulse {
+  from {
+    opacity: 0.65;
+  }
+
+  to {
+    opacity: 1;
   }
 }
 
@@ -522,6 +585,9 @@ h1 small {
 
   .grain,
   .topo-track,
+  .topo-track--ambient,
+  .topo path.is-outer,
+  .topo path.is-peak,
   .cpu-burn {
     animation: none;
   }

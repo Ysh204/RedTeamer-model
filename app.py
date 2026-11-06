@@ -2,11 +2,44 @@ import gc
 import json
 import os
 import re
+import subprocess
+import sys
 import threading
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parent
 os.environ.setdefault("HF_HOME", str(ROOT / ".hf_cache"))
+
+# Self-bootstrap into project virtual environment if invoked by external/system Python
+if os.environ.get("_REDTEAMER_REEXEC") != "1":
+    venv_python = None
+    if os.name == "nt":
+        candidate = ROOT / ".venv" / "Scripts" / "python.exe"
+        if candidate.is_file():
+            venv_python = candidate
+    else:
+        # WSL / Linux environment
+        candidate_lin = ROOT / ".venv" / "bin" / "python"
+        candidate_win = ROOT / ".venv" / "Scripts" / "python.exe"
+        if candidate_lin.is_file():
+            venv_python = candidate_lin
+        elif candidate_win.is_file():
+            venv_python = candidate_win
+
+    if venv_python:
+        try:
+            curr = Path(sys.executable).resolve()
+            tgt = venv_python.resolve()
+            if curr != tgt:
+                print(f"[RedTeamer] Detected external Python ({curr})")
+                print(f"[RedTeamer] Auto-restarting with project virtual environment ({tgt})...\n")
+                env = dict(os.environ)
+                env["_REDTEAMER_REEXEC"] = "1"
+                cmd = [str(venv_python), str(Path(__file__).resolve())] + sys.argv[1:]
+                code = subprocess.call(cmd, env=env)
+                sys.exit(code)
+        except Exception as e:
+            print(f"[RedTeamer] Warning during environment bootstrap check: {e}")
 
 import gradio as gr
 import torch

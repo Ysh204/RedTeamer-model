@@ -1,12 +1,44 @@
 import asyncio
 import json
 import os
+import subprocess
 import sys
 from pathlib import Path
 from typing import AsyncGenerator
 
 ROOT = Path(__file__).resolve().parent
 sys.path.insert(0, str(ROOT))
+
+# Self-bootstrap into project virtual environment if invoked by external/system Python
+if os.environ.get("_REDTEAMER_REEXEC") != "1":
+    venv_python = None
+    if os.name == "nt":
+        candidate = ROOT / ".venv" / "Scripts" / "python.exe"
+        if candidate.is_file():
+            venv_python = candidate
+    else:
+        # WSL / Linux environment
+        candidate_lin = ROOT / ".venv" / "bin" / "python"
+        candidate_win = ROOT / ".venv" / "Scripts" / "python.exe"
+        if candidate_lin.is_file():
+            venv_python = candidate_lin
+        elif candidate_win.is_file():
+            venv_python = candidate_win
+
+    if venv_python:
+        try:
+            curr = Path(sys.executable).resolve()
+            tgt = venv_python.resolve()
+            if curr != tgt:
+                print(f"[RedTeamer] Detected external Python ({curr})")
+                print(f"[RedTeamer] Auto-restarting with project virtual environment ({tgt})...\n")
+                env = dict(os.environ)
+                env["_REDTEAMER_REEXEC"] = "1"
+                cmd = [str(venv_python), str(Path(__file__).resolve())] + sys.argv[1:]
+                code = subprocess.call(cmd, env=env)
+                sys.exit(code)
+        except Exception as e:
+            print(f"[RedTeamer] Warning during environment bootstrap check: {e}")
 
 import app
 import torch
@@ -271,5 +303,13 @@ async def post_review(payload: ReviewPayload):
 
 
 if __name__ == "__main__":
-    uvicorn.run("server:fastapi_app", host="127.0.0.1", port=8000, reload=False)
+    print("=" * 60)
+    print("  RedTeamer Backend API Server")
+    print(f"  Python:  {sys.executable}")
+    print(f"  Device:  {get_gpu_name()}")
+    print("  Backend: http://127.0.0.1:8000")
+    print("  Keep this terminal open while using the web UI.")
+    print("=" * 60)
+    uvicorn.run("server:fastapi_app", host="0.0.0.0", port=8000, reload=False)
+
 
