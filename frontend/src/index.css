@@ -1,0 +1,55 @@
+:root {
+  --paper: #e8e6e1;
+  --paper-deep: #dcd9d2;
+  --card: #ffffff;
+  --ink: #111111;
+  --muted: #6a6a6a;
+  --line: #111111;
+  --hero: #050505;
+  --serif: 'Instrument Serif', 'Times New Roman', serif;
+  --sans: Inter, system-ui, 'Segoe UI', sans-serif;
+  --mono: 'JetBrains Mono', ui-monospace, monospace;
+}
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  margin: 0;
+  min-height: 100%;
+}
+
+body {
+  font-family: var(--sans);
+  color: var(--ink);
+  background: var(--paper);
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+button,
+input,
+textarea {
+  font: inherit;
+  color: inherit;
+}
+
+button {
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+img {
+  max-width: 100%;
+  display: block;
+}

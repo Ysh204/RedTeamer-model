@@ -16,13 +16,22 @@ The Attacker performs **read-only static analysis** of supplied source code. It 
 ## 1. Setup
 """
 
-!nvidia-smi
-!pip install -q -U transformers peft bitsandbytes accelerate datasets "pyarrow>=24" pandas
-
-import os, json, math, random, re, time, shutil
+import json
+import math
+import os
+import random
+import re
+import shutil
+import time
 import torch
-from google.colab import drive
-drive.mount("/content/drive")
+
+# Environment detection (Google Colab vs. Local GPU)
+try:
+    from google.colab import drive
+    drive.mount("/content/drive")
+    IN_COLAB = True
+except (ImportError, ModuleNotFoundError):
+    IN_COLAB = False
 
 PRESET = "quick"  # "quick" smoke test | "full" longer training
 BASE_MODEL = "Qwen/Qwen3-4B"
@@ -36,13 +45,17 @@ else:
 EARLY_STOP_PATIENCE = 2
 MAX_NEW_TOKENS = 700
 ADAPTER_NAME = "attacker-qwen3-4b-qlora-v1"
-DRIVE_DIR = f"/content/drive/MyDrive/{ADAPTER_NAME}"
+if IN_COLAB:
+    DRIVE_DIR = f"/content/drive/MyDrive/{ADAPTER_NAME}"
+else:
+    DRIVE_DIR = f"./output/{ADAPTER_NAME}"
 CKPT_DIR, FINAL_DIR = f"{DRIVE_DIR}/checkpoints", f"{DRIVE_DIR}/final"
 os.makedirs(CKPT_DIR, exist_ok=True)
+os.makedirs(FINAL_DIR, exist_ok=True)
 random.seed(SEED)
 torch.manual_seed(SEED)
 print("GPU:", torch.cuda.get_device_name(0) if torch.cuda.is_available() else "NO GPU")
-print("Preset:", PRESET, "| Drive:", DRIVE_DIR)
+print("Preset:", PRESET, "| Output Dir:", DRIVE_DIR)
 
 """## 2. Prompt contract, JSON schema and runtime validation"""
 

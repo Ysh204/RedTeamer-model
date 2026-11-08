@@ -1,7 +1,18 @@
-# Install PyTorch separately using the official selector in README.md.
-transformers>=5.22.1,<6
-peft>=0.21.2,<0.22
-accelerate>=1.0,<2
-bitsandbytes>=0.46,<1
-gradio>=5,<7
-safetensors>=0.4.5,<1
+# Install PyTorch separately using the official selector in README.md matching your CUDA version:
+# https://pytorch.org/get-started/locally/
+
+# Core ML & Inference
+transformers>=4.48.0,<5.0.0
+peft>=0.14.0,<0.22.0
+accelerate>=0.34.0,<2.0.0
+bitsandbytes>=0.45.0,<1.0.0
+safetensors>=0.4.5,<1.0.0
+
+# API Server & Backend
+fastapi>=0.115.0,<1.0.0
+uvicorn[standard]>=0.30.0,<1.0.0
+pydantic>=2.0.0,<3.0.0
+
+# Alternative UI (Gradio)
+gradio>=5.0.0,<7.0.0
+
