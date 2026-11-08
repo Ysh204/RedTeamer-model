@@ -100,7 +100,7 @@ export function BurningDataCenterMachine() {
     const rand = mulberry(0x51f15e)
 
     let raf = 0
-    let running = true
+    const isRunning = { current: true }
     let w = 0
     let h = 0
     let tick = 0
@@ -121,17 +121,18 @@ export function BurningDataCenterMachine() {
     const DEFAULT_YAW = -0.56
     let pitch = DEFAULT_PITCH
     let yaw = DEFAULT_YAW
-    let targetPitch = DEFAULT_PITCH
-    let targetYaw = DEFAULT_YAW
+    const target = { pitch: DEFAULT_PITCH, yaw: DEFAULT_YAW }
     let lastRasterPitch = -999
     let lastRasterYaw = -999
-    let velPitch = 0
-    let velYaw = 0
-    let isDragging = false
-    let lastMouseX = 0
-    let lastMouseY = 0
-    let mouseWindX = 0
-    let surgeHeat = 0
+    const interaction = {
+      isDragging: false,
+      lastMouseX: 0,
+      lastMouseY: 0,
+      mouseWindX: 0,
+      surgeHeat: 0,
+      velPitch: 0,
+      velYaw: 0,
+    }
 
     let plumeCx = 0
     let plumeCy = 0
@@ -620,7 +621,7 @@ export function BurningDataCenterMachine() {
     }
 
     const seedFire = () => {
-      const totalInt = Math.min(1.9, 1.22 + surgeHeat)
+      const totalInt = Math.min(1.9, 1.22 + interaction.surgeHeat)
       const t = tick * 0.048
 
       for (let k = 0; k < emitterCount; k++) {
@@ -655,7 +656,7 @@ export function BurningDataCenterMachine() {
     const stepHeat = () => {
       tick++
       const t = tick * 0.036
-      const decayScale = 1 / Math.max(0.55, Math.min(1.75, 1.22 + surgeHeat * 0.65))
+      const decayScale = 1 / Math.max(0.55, Math.min(1.75, 1.22 + interaction.surgeHeat * 0.65))
 
       for (let y = 0; y < h - 3; y++) {
         const row = y * w
@@ -669,7 +670,7 @@ export function BurningDataCenterMachine() {
           const centerPull = (x - (plumeCx + chimneyWave)) * 0.014 * heightFrac
           const jitter = (rand() - 0.5) * 1.8
 
-          let srcX = Math.round(x + swirl + centerPull + jitter - mouseWindX * 1.8)
+          let srcX = Math.round(x + swirl + centerPull + jitter - interaction.mouseWindX * 1.8)
           if (srcX < 1) srcX = 1
           else if (srcX >= w - 1) srcX = w - 2
 
@@ -705,8 +706,8 @@ export function BurningDataCenterMachine() {
       heat.set(next)
       seedFire()
 
-      mouseWindX *= 0.91
-      surgeHeat *= 0.95
+      interaction.mouseWindX *= 0.91
+      interaction.surgeHeat *= 0.95
     }
 
     const paint = () => {
@@ -819,14 +820,14 @@ export function BurningDataCenterMachine() {
     }
 
     const frame = () => {
-      if (!running) return
-      if (!isDragging) {
+      if (!isRunning.current) return
+      if (!interaction.isDragging) {
         const idleBreathP = Math.sin(tick * 0.018) * 0.018
         const idleBreathY = Math.cos(tick * 0.014) * 0.035
-        velYaw *= 0.88
-        velPitch *= 0.88
-        yaw += velYaw + (targetYaw + idleBreathY - yaw) * 0.1
-        pitch += velPitch + (targetPitch + idleBreathP - pitch) * 0.1
+        interaction.velYaw *= 0.88
+        interaction.velPitch *= 0.88
+        yaw += interaction.velYaw + (target.yaw + idleBreathY - yaw) * 0.1
+        pitch += interaction.velPitch + (target.pitch + idleBreathP - pitch) * 0.1
       }
       pitch = Math.max(0.08, Math.min(0.62, pitch))
 
@@ -852,10 +853,10 @@ export function BurningDataCenterMachine() {
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
       if (!isPointNearCanvas(clientX, clientY)) return
 
-      isDragging = true
-      lastMouseX = clientX
-      lastMouseY = clientY
-      surgeHeat = Math.min(0.75, surgeHeat + 0.4)
+      interaction.isDragging = true
+      interaction.lastMouseX = clientX
+      interaction.lastMouseY = clientY
+      interaction.surgeHeat = Math.min(0.75, interaction.surgeHeat + 0.4)
     }
 
     const handlePointerMove = (e: MouseEvent | TouchEvent) => {
@@ -863,44 +864,44 @@ export function BurningDataCenterMachine() {
       const clientY = 'touches' in e ? e.touches[0].clientY : e.clientY
       const rect = canvas.getBoundingClientRect()
 
-      if (isDragging) {
-        const dx = clientX - lastMouseX
-        const dy = clientY - lastMouseY
-        lastMouseX = clientX
-        lastMouseY = clientY
+      if (interaction.isDragging) {
+        const dx = clientX - interaction.lastMouseX
+        const dy = clientY - interaction.lastMouseY
+        interaction.lastMouseX = clientX
+        interaction.lastMouseY = clientY
 
-        velYaw = dx * 0.012
-        velPitch = dy * 0.008
-        yaw += velYaw
-        pitch = Math.max(0.08, Math.min(0.62, pitch + velPitch))
-        targetYaw = yaw
-        targetPitch = pitch
-        mouseWindX = Math.max(-2.8, Math.min(2.8, dx * 0.15))
+        interaction.velYaw = dx * 0.012
+        interaction.velPitch = dy * 0.008
+        yaw += interaction.velYaw
+        pitch = Math.max(0.08, Math.min(0.62, pitch + interaction.velPitch))
+        target.yaw = yaw
+        target.pitch = pitch
+        interaction.mouseWindX = Math.max(-2.8, Math.min(2.8, dx * 0.15))
       } else if (isPointNearCanvas(clientX, clientY)) {
         const nx = ((clientX - rect.left) / Math.max(1, rect.width) - 0.5) * 2
         const ny = ((clientY - rect.top) / Math.max(1, rect.height) - 0.6) * 2
-        const dx = clientX - lastMouseX
-        lastMouseX = clientX
-        lastMouseY = clientY
+        const dx = clientX - interaction.lastMouseX
+        interaction.lastMouseX = clientX
+        interaction.lastMouseY = clientY
         if (Math.abs(dx) < 80) {
-          mouseWindX = Math.max(-2.0, Math.min(2.0, mouseWindX * 0.72 + dx * 0.065))
+          interaction.mouseWindX = Math.max(-2.0, Math.min(2.0, interaction.mouseWindX * 0.72 + dx * 0.065))
         }
-        targetYaw = DEFAULT_YAW + nx * 0.35
-        targetPitch = Math.max(0.12, Math.min(0.54, DEFAULT_PITCH + ny * 0.15))
+        target.yaw = DEFAULT_YAW + nx * 0.35
+        target.pitch = Math.max(0.12, Math.min(0.54, DEFAULT_PITCH + ny * 0.15))
       }
     }
 
     const handlePointerUp = () => {
-      isDragging = false
+      interaction.isDragging = false
     }
 
     const handleDoubleClick = (e: MouseEvent) => {
       if (!isPointNearCanvas(e.clientX, e.clientY)) return
-      targetPitch = DEFAULT_PITCH
-      targetYaw = DEFAULT_YAW
-      velPitch = 0
-      velYaw = 0
-      surgeHeat = 0.65
+      target.pitch = DEFAULT_PITCH
+      target.yaw = DEFAULT_YAW
+      interaction.velPitch = 0
+      interaction.velYaw = 0
+      interaction.surgeHeat = 0.65
     }
 
     window.addEventListener('mousedown', handlePointerDown)
@@ -921,7 +922,7 @@ export function BurningDataCenterMachine() {
     if (canvas.parentElement) ro.observe(canvas.parentElement)
 
     return () => {
-      running = false
+      isRunning.current = false
       cancelAnimationFrame(raf)
       ro.disconnect()
       window.removeEventListener('mousedown', handlePointerDown)

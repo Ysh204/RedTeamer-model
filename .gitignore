@@ -17,9 +17,19 @@ __pycache__/
 security-redteamer-qwen3-lora-v5/
 patcher_agent/patcher_v31_export/adapter/
 critic_agent/critic_v1_export/adapter/
+output/
 *.safetensors
 *.gguf
 *.pt
 *.pth
 adapter_model.bin
 pytorch_model*.bin
+
+# Node & Frontend Build Artifacts
+node_modules/
+frontend/node_modules/
+dist/
+frontend/dist/
+dist-ssr/
+*.tsbuildinfo
+

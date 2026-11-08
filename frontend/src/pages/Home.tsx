@@ -15,15 +15,18 @@ function take(source: string, remaining: number): [string, number] {
 }
 
 export function HomePage() {
-  const [typed, setTyped] = useState(0)
+  const [typed, setTyped] = useState(() => {
+    if (typeof window !== 'undefined' && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      return TOTAL
+    }
+    return 0
+  })
 
   useEffect(() => {
-    const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (reduce) {
-      setTyped(TOTAL)
+    if (typed >= TOTAL) {
       return
     }
-    let n = 0
+    let n = typed
     let id = 0
     const delay = window.setTimeout(() => {
       id = window.setInterval(() => {
@@ -36,7 +39,7 @@ export function HomePage() {
       window.clearTimeout(delay)
       window.clearInterval(id)
     }
-  }, [])
+  }, [typed])
 
   let remaining = typed
   let line1: string

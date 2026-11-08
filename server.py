@@ -48,7 +48,11 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from pydantic import BaseModel
 
-fastapi_app = FastAPI(title="Security Red-Teamer API", version="1.0.0")
+fastapi_app = FastAPI(
+    title="Security Red-Teamer API",
+    description="Adversarial Multi-Agent Vulnerability Review and AST Patch Proposal Engine",
+    version="1.0.0",
+)
 
 fastapi_app.add_middleware(
     CORSMiddleware,
@@ -63,6 +67,18 @@ def get_gpu_name() -> str:
     if torch.cuda.is_available():
         return torch.cuda.get_device_name(0)
     return "No CUDA GPU detected"
+
+
+@fastapi_app.get("/")
+@fastapi_app.get("/health")
+async def health_check():
+    return {
+        "status": "healthy",
+        "service": "Security Red-Teamer API",
+        "version": "1.0.0",
+        "model_loaded": app._model is not None,
+        "device": get_gpu_name(),
+    }
 
 
 @fastapi_app.get("/api/model/status")

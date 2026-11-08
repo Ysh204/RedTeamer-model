@@ -67,10 +67,12 @@ export function Shell({ children, home = false }: { children: ReactNode; home?: 
   const [menuOpen, setMenuOpen] = useState(false)
   const [model, setModel] = useState<ModelState>({ isLoaded: false, loading: false })
   const location = useLocation()
+  const [prevPath, setPrevPath] = useState(location.pathname)
 
-  useEffect(() => {
+  if (location.pathname !== prevPath) {
+    setPrevPath(location.pathname)
     setMenuOpen(false)
-  }, [location.pathname])
+  }
 
   useEffect(() => {
     let cancelled = false
